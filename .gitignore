@@ -7,6 +7,7 @@ torchat/src/torchat.ini
 torchat/src/dump.txt
 
 torchat/bin
+torchat/bin.needed
 torchat/release
 torchat/src/build
 torchat/src/dist
@@ -15,3 +16,5 @@ tor.exe
 
 .project
 .pydevproject
+.settings
+.git
