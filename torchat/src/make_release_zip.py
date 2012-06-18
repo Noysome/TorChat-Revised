@@ -90,6 +90,8 @@ def zipSrc(zipfile_name):
         "src\\changelog.txt",
         "src\\LICENSE",
 
+	"src\\TorCtl\\*",
+
         "src\\translations\\*.txt",
         "src\\translations\\lang_*.py",
         "src\\translations\\insert_missing.py",

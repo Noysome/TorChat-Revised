@@ -32,20 +32,27 @@ config_defaults = {
     ("tor", "tor_server") : "127.0.0.1",
     ("tor", "tor_server_socks_port") : 9050,
     ("tor", "tor_server_control_port") : 9051,
+    ("tor", "tor_server_control_pass") : "",
     ("tor_portable", "tor_server") : "127.0.0.1",
     ("tor_portable", "tor_server_socks_port") : 11109,
     ("tor_portable", "tor_server_control_port") : 11119,
+    ("tor_portable", "tor_server_control_pass") : "",
     ("client", "own_hostname") : "0000000000000000",
     ("client", "listen_interface") : "127.0.0.1",
     ("client", "listen_port") : 11009,
     ("logging", "log_file") : "",
     ("logging", "log_level") : 0,
+    ("logging", "chatlog_path") : "",
     ("files", "temp_files_in_data_dir") : 1,
     ("files", "temp_files_custom_dir") : "",
+    ("options", "confirm_close_chat") : 1,
+    ("options", "enable_chatlogs_globaly") : 0,
+    ("options", "clear_cache_on_startup") : 0,
     ("gui", "language") : "en",
     ("gui", "notification_popup") : 1,
-    ("gui", "notification_method") : "generic",
+    ("gui", "notification_method") : "simple",
     ("gui", "notification_flash_window") : 1,
+    ("gui", "notification_excluded_users") : "",
     ("gui", "open_main_window_hidden") : 0,
     ("gui", "open_chat_window_hidden") : 0,
     ("gui", "time_stamp_format") : "(%H:%M:%S)",
@@ -62,6 +69,7 @@ config_defaults = {
     ("gui", "chat_window_height_lower") : 50,
     ("gui", "main_window_width") : 260,
     ("gui", "main_window_height") : 350,
+    ("gui", "nickname_colors") : "#660000,#00008C,#006400,#993300,#003366,#500050,#663300,#999900,#003300,#006699,#333399,#663333,#003333,#0066cc,#333333, #000000,#00008C,#006400,#820000,#500050,#FF5A00,#00FF00,#0096B4,#AAAAFF,#0F0FFF,#C800C8,#500050,#AAAAAA",
     ("branding", "support_id") : "utvrla6mjdypbyw6",
     ("branding", "support_name") : "Bernd, author of TorChat",
     ("profile", "name") : "",
@@ -191,11 +199,23 @@ def getDataDir():
     
     return data_dir
 
+def getUserCustomDir():
+    custom_dir  = get('files', 'temp_files_custom_dir')
+    if not os.path.exists(custom_dir):
+        return ""
+    return custom_dir
+    
 def getProfileLongName():
     try:
         return "%s - %s" % (toUnicode(sys.argv[1]), get("client", "own_hostname"))
     except:
         return get("client", "own_hostname")
+
+def getProfileShortName():
+    profile_name    = get("profile", "name")
+    if not profile_name  == "":
+        return profile_name
+    return get("client", "own_hostname")
 
 class OrderedRawConfigParser(ConfigParser.RawConfigParser):
     def __init__(self, defaults = None):

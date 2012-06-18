@@ -21,6 +21,7 @@ import wx
 import tc_client
 import sys
 import os
+import re
 import shutil
 import time
 import subprocess
@@ -29,6 +30,8 @@ import version
 import dlg_settings
 import translations
 import tc_notification
+import string
+from imaplib import Flags
 lang = translations.lang_en
 tb = config.tb
 tb1 = config.tb1
@@ -87,7 +90,7 @@ class TaskbarIcon(wx.TaskBarIcon):
         return TaskbarMenu(self.mw)
 
     def getToolTipText(self):
-        text = "TorChat: %s" % config.getProfileLongName()
+        text = "TorChat: %s" % config.getProfileShortName()
         for window in self.mw.chat_windows:
             if not window.IsShown():
                 text += os.linesep + window.getTitleShort()
@@ -231,10 +234,6 @@ class PopupMenu(wx.Menu):
                 self.AppendItem(item)
                 self.Bind(wx.EVT_MENU, self.onClearOffline, item)
 
-            item = wx.MenuItem(self, wx.NewId(), lang.MPOP_COPY_ID_TO_CLIPBOARD)
-            self.AppendItem(item)
-            self.Bind(wx.EVT_MENU, self.onCopyIdToClipboard)
-
             self.AppendSeparator()
 
             if not self.isCurrentBuddyLoggingActivated():
@@ -283,6 +282,12 @@ class PopupMenu(wx.Menu):
         self.Bind(wx.EVT_MENU, self.onProfile, item)
 
         self.AppendSeparator()
+        
+        #change identity
+        
+        item = wx.MenuItem(self, wx.NewId(), lang.DEC_NEW_IDENTITIY)
+        self.AppendItem(item)
+        self.Bind(wx.EVT_MENU, self.onNewIdentity, item)
 
         #settings
 
@@ -342,20 +347,13 @@ class PopupMenu(wx.Menu):
         except:
             pass
 
-    def onCopyIdToClipboard(self, evt):
-        if not wx.TheClipboard.IsOpened():
-            address = wx.TextDataObject(self.buddy.address)
-            wx.TheClipboard.Open()
-            wx.TheClipboard.SetData(address)
-            wx.TheClipboard.Close()
-
     def getChatWindow(self):
         # this is called by the on*Log() functions,
         # because all logging is done by the chat windows,
         # logging does not belong to the functionality
         # of the Buddy in tc_client.py
         for window in self.mw.chat_windows:
-            if window.buddy == self.buddy:
+            if window.buddy.address == self.buddy.address:
                 print "found"
                 return window
 
@@ -363,10 +361,16 @@ class PopupMenu(wx.Menu):
         return ChatWindow(self.mw, self.buddy, "", True)
 
     def isCurrentBuddyLoggingActivated(self):
-        return os.path.exists(os.path.join(config.getDataDir(), '%s.log' % self.buddy.address))
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        return os.path.exists(os.path.join(path, '%s.log' % self.buddy.address))
 
     def hasOldLog(self):
-        return os.path.exists(os.path.join(config.getDataDir(), 'disabled_%s.log' % self.buddy.address))
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        return os.path.exists(os.path.join(path, 'disabled_%s.log' % self.buddy.address))
 
     def onActivateLog(self, evt):
         self.getChatWindow().onActivateLog(evt)
@@ -388,6 +392,10 @@ class PopupMenu(wx.Menu):
     def onSettings(self, evt):
         dialog = dlg_settings.Dialog(self.mw)
         dialog.ShowModal()
+    
+    def onNewIdentity(self, evt):
+        if not self.mw.buddy_list.changeTorIdentity():
+            wx.MessageBox(lang.D_WARN_CONTROL_CONNECTION_FAILED_MESSAGE, lang.D_WARN_CONTROL_CONNECTION_FAILED_TITLE)
 
     def onAbout(self, evt):
         wx.MessageBox(lang.ABOUT_TEXT % {"version":version.VERSION,
@@ -617,8 +625,18 @@ class DlgEditProfile(wx.Dialog):
     def getAvatarBitmap(self, file_name=None):
         if file_name:
             image = wx.Image(file_name, wx.BITMAP_TYPE_PNG)
-            image.Rescale(64, 64, wx.IMAGE_QUALITY_HIGH)
-            return wx.BitmapFromImage(image)
+            # CROP IMAGE
+            width   = image.GetWidth()
+            height  = image.GetHeight()
+            if height == width:
+                cropped = image
+            else:
+                if height > width:
+                    cropped = image.GetSubImage(wx.Rect(0, height/2-width/2, width, width))
+                else:
+                    cropped = image.GetSubImage(wx.Rect(width/2-height/2, 0, height, height))
+            cropped.Rescale(64, 64, wx.IMAGE_QUALITY_HIGH)
+            return wx.BitmapFromImage(cropped)
         else:
             if self.mw.buddy_list.own_avatar_data:
                 image = wx.ImageFromData(64, 64, self.mw.buddy_list.own_avatar_data)
@@ -694,7 +712,9 @@ class DlgEditProfile(wx.Dialog):
         for buddy in self.mw.buddy_list.list:
             buddy.sendProfile()
             buddy.sendStatus()
-
+        
+        self.mw.onProfileUpdated()
+        
         self.Close()
 
 
@@ -747,7 +767,7 @@ class BuddyList(wx.ListCtrl):
             self.SetForegroundColour(config.get("gui", "color_text_fore"))
 
         self.onListChanged()
-
+        
         self.loadOwnAvatarData()
 
     def loadOwnAvatarData(self):
@@ -755,34 +775,62 @@ class BuddyList(wx.ListCtrl):
         if os.path.exists(file_name):
             print "(2) reading own avatar file %s" % file_name
             image = wx.Image(file_name, wx.BITMAP_TYPE_PNG)
-            image.Rescale(64, 64, wx.IMAGE_QUALITY_HIGH)
-            self.bl.own_avatar_data = image.GetData()
+            width   = image.GetWidth()
+            height  = image.GetHeight()
+            if height == width:
+                cropped = image
+            else:
+                if height > width:
+                    cropped = image.GetSubImage(wx.Rect(0, height/2-width/2, width, width))
+                else:
+                    cropped = image.GetSubImage(wx.Rect(width/2-height/2, 0, height, height))
+            cropped.Rescale(64, 64, wx.IMAGE_QUALITY_HIGH)
+            self.bl.own_avatar_data = cropped.GetData()
             print "(2) uncompressed image data: %i bytes" % len(self.bl.own_avatar_data)
-            if image.HasAlpha():
-                self.bl.own_avatar_data_alpha = image.GetAlphaData()
+            if cropped.HasAlpha():
+                self.bl.own_avatar_data_alpha = cropped.GetAlphaData()
                 print "(2) uncompressed aplha data: %i bytes" % len(self.bl.own_avatar_data_alpha)
             else:
                 self.bl.own_avatar_data_alpha = ""
             for buddy in self.bl.list:
                 buddy.sendAvatar()
-
+    
+    def sortListByStatus(self, value1, value2):
+        try:
+            buddy1 = self.bl.list[value1]
+            buddy2 = self.bl.list[value2]
+            
+            i1 = int(buddy1.getStatusOrder())
+            i2 = int(buddy2.getStatusOrder())
+            n1 = str(buddy1.getDisplayName().lower())
+            n2 = str(buddy2.getDisplayName().lower())
+        except ValueError:
+            return cmp(value1, value1)
+        else:
+            return cmp((i1, n1), (i2, n2))
+        
     def setStatusIcon(self, index, image_idx):
         # we also store the image index in the ItemData because
         # we can then avoid setting it twice and avoid flickering
-        old = self.GetItemData(index)
-        if image_idx <> old:
+        key = self.GetItemData(index)
+        old_image_idx = self.bl.list[key].image_idx;
+        #old = self.GetItemData(index)
+        #if image_idx <> old:
+        if old_image_idx <> image_idx:
             self.SetItemImage(index, image_idx)
-            self.SetItemData(index, image_idx)
+            self.bl.list[key].image_idx = image_idx
+            #self.SetItemData(index, image_idx)
 
     def blinkBuddy(self, buddy, blink=True):
         name = buddy.getDisplayName()
         for index in xrange(0, self.GetItemCount()):
-            if name == self.GetItemText(index):
+            if self.getBuddyFromIndex(index) == buddy:
                 if blink:
-                    if self.blink_phase:
+                    self.setStatusIcon(index, self.il_idx[100])
+                    '''if self.blink_phase:
                         self.setStatusIcon(index, self.il_idx[100])
                     else:
-                        self.setStatusIcon(index, self.il_idx[buddy.status])
+                        self.setStatusIcon(index, self.il_idx[buddy.status])'''
                 else:
                     self.setStatusIcon(index, self.il_idx[buddy.status])
 
@@ -827,25 +875,22 @@ class BuddyList(wx.ListCtrl):
         wx.CallAfter(self.mw.SetFocus)
 
     def onDClick(self, evt):
-        i = self.GetFirstSelected()
-        if i <> -1:
-            address = self.GetItemText(i)[0:16]
-            for buddy in self.bl.list:
-                if buddy.address == address:
-                    found_window = False
-                    for window in self.mw.chat_windows:
-                        if window.buddy == buddy:
-                            found_window = True
-                            break
-
-                    if not found_window:
-                        window = ChatWindow(self.mw, buddy)
-
-                    if not window.IsShown():
-                        window.Show()
-
-                    window.txt_out.SetFocus()
+        index = self.GetFirstSelected()
+        if index <> -1:
+            buddy = self.getBuddyFromIndex(index)
+            found_window = False
+            for window in self.mw.chat_windows:
+                if window.buddy.address == buddy.address:
+                    found_window = True
                     break
+                
+            if not found_window:
+                window = ChatWindow(self.mw, buddy)
+            
+            if not window.IsShown():
+                window.Show()
+            
+            window.txt_out.SetFocus()
 
         evt.Skip()
 
@@ -865,26 +910,28 @@ class BuddyList(wx.ListCtrl):
 
     def getSelectedBuddy(self):
         index = self.GetFirstSelected()
-        addr = self.GetItemText(index)[0:16]
-        return self.bl.getBuddyFromAddress(addr)
+        return self.getBuddyFromIndex(index)
+        '''addr = self.GetItemText(index)[0:16]
+        return self.bl.getBuddyFromAddress(addr)'''
 
     def getBuddyFromXY(self, position):
         index, flags = self.HitTest(position)
         if index != -1:
-            addr = self.GetItemText(index)[0:16]
-            return self.bl.getBuddyFromAddress(addr)
+            return self.getBuddyFromIndex(index)
+            '''addr = self.GetItemText(index)[0:16]
+            return self.bl.getBuddyFromAddress(addr)'''
         else:
             return None
 
     def onBuddyStatusChanged(self, buddy):
         assert isinstance(buddy, tc_client.Buddy)
-        line = buddy.getDisplayName()
-        index = self.FindItem(0, line)
+        index = self.getIndexFromBuddy(buddy)
         self.SetItemImage(index, self.il_idx[buddy.status])
-
+        # Lets sort by status
+        self.SortItems(self.sortListByStatus)
         #notify the chat window
         for window in self.mw.chat_windows:
-            if window.buddy == buddy:
+            if window.buddy.address == buddy.address:
                 window.onBuddyStatusChanged()
                 break
 
@@ -897,13 +944,12 @@ class BuddyList(wx.ListCtrl):
 
         #notify the chat window
         for window in self.mw.chat_windows:
-            if window.buddy == buddy:
-                window.onBuddyProfileChanged()
+            if window.buddy.address == buddy.address:
+                window.onBuddyProfileChanged(buddy)
                 break
 
         # if a tooltip for this buddy is currently shown then refresh it
-        line = buddy.getDisplayName()
-        index = self.FindItem(0, line)
+        index = self.getIndexFromBuddy(buddy)
         if self.tool_tip <> None and index == self.tool_tip_index:
             self.openToolTip(index)
 
@@ -922,13 +968,14 @@ class BuddyList(wx.ListCtrl):
 
         # notify the chat window
         for window in self.mw.chat_windows:
-            if window.buddy == buddy:
-                window.onBuddyAvatarChanged()
+            if window.buddy.address == buddy.address:
+                window.onBuddyAvatarChanged(buddy)
                 break
 
         # if a tooltip for this buddy is currently shown then refresh it
-        line = buddy.getDisplayName()
-        index = self.FindItem(0, line)
+        '''line = buddy.getDisplayName()
+        index = self.FindItem(0, line)'''
+        index = self.getIndexFromBuddy(buddy)
         if self.tool_tip <> None and index == self.tool_tip_index:
             self.openToolTip(index)
 
@@ -937,26 +984,25 @@ class BuddyList(wx.ListCtrl):
         # whenever the client has saved the changed list
 
         # TODO: This whole method seems a bit ugly
-
-        # remove items which are not in list anymore
-        for index in xrange(0, self.GetItemCount()):
-            found = False
-            for buddy in self.bl.list:
-                if buddy.getDisplayName() == self.GetItemText(index):
-                    found = True
-                    break
-            if not found:
-                self.DeleteItem(index)
-                break
+        self.DeleteAllItems()
 
         #add new items to the list
-        for buddy in self.bl.list:
-            line = buddy.getDisplayName()
-            index = self.FindItem(0, line)
+        for key, buddy in enumerate(self.bl.list):
+            label = buddy.getDisplayName()
+            #index = self.FindItem(0, label)
+            index = self.getIndexFromBuddy(buddy)
             if index == -1:
-                index = self.InsertImageStringItem(sys.maxint, line, self.il_idx[tc_client.STATUS_OFFLINE])
+                image_idx = self.il_idx[tc_client.STATUS_OFFLINE]
+                self.bl.list[key].image_idx = image_idx
+                self.bl.list[key].bl_key = key
+                index = self.InsertImageStringItem(sys.maxint, label, image_idx)
+                self.SetItemData(index, key)
                 self.SetColumnWidth(0, wx.LIST_AUTOSIZE)
                 self.onBuddyStatusChanged(buddy)
+        
+        # Lets sort by status
+        self.SortItems(self.sortListByStatus)
+                
 
     def onMouse(self, evt):
         self.has_mouse = True
@@ -977,12 +1023,20 @@ class BuddyList(wx.ListCtrl):
     def onMouseLeave(self, evt):
         self.has_mouse = False
         self.closeToolTip()
-
+    
+    def getIndexFromBuddy(self, buddy):
+        index = self.FindItemData(-1, buddy.bl_key);
+        return index
+        
     def getBuddyFromIndex(self, index):
-        name = self.GetItemText(index)
+        key = self.GetItemData(index)
+        buddy = self.bl.list[key]
+        #wx.MessageBox(buddy.name, 'Info', wx.OK | wx.ICON_INFORMATION)
+        return buddy
+        '''name = self.GetItemText(index)
         for buddy in self.bl.list:
             if buddy.getDisplayName() == name:
-                return buddy
+                return buddy'''
 
 class BuddyToolTip(wx.PopupWindow):
     def __init__(self, list, index):
@@ -1021,7 +1075,6 @@ class BuddyToolTip(wx.PopupWindow):
 
 
         self.label = wx.StaticText(self.panel)
-        self.label.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOTEXT))
         self.label.SetLabel(text)
         sizer.Add(self.label, 0, wx.ALL, 5)
 
@@ -1093,7 +1146,153 @@ class StatusSwitch(wx.Button):
             status_text = lang.ST_OFFLINE
         self.SetLabel(status_text)
 
+class MyInfoBar(wx.Panel):
+    def __init__(self, parent, mw):
+        wx.Panel.__init__(self, parent, -1)
+        
+        self.mw         = mw
+        self.parent     = parent
+        self.avatar     = wx.StaticBitmap(self, -1, wx.EmptyBitmap(64, 64))
+        self.infolabel  = wx.StaticText(self)
+        
+        self.hasavatar  = False
+        self.hasinfo    = False
+        
+        self.Bind(wx.EVT_LEFT_UP, self.onClick)
+        self.avatar.Bind(wx.EVT_LEFT_UP, self.onClick)
+        self.infolabel.Bind(wx.EVT_LEFT_UP, self.onClick)
+        
+        self.updateInfo()
+        self.doLayout()
+        
+        self.SetCursor(wx.StockCursor(wx.CURSOR_HAND))
+        
+    def doLayout(self):
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(self.avatar, 0, wx.ALL, 5)
+        sizer.Add(self.infolabel, 1, wx.ALL|wx.EXPAND, 5)
+        self.SetSizer(sizer)
+        self.Layout()
+    
+    def getAvatarBitmap(self):
+        if self.mw.buddy_list.own_avatar_data:
+            image = wx.ImageFromData(64, 64, self.mw.buddy_list.own_avatar_data)
+            if self.mw.buddy_list.own_avatar_data_alpha:
+                image.SetAlphaData(self.mw.buddy_list.own_avatar_data_alpha)
+            return wx.BitmapFromImage(image)
+        else:
+            return wx.Bitmap(os.path.join(config.ICON_DIR, "torchat.png"), wx.BITMAP_TYPE_PNG)
+    
+    def onClick(self, evt):
+        dialog = DlgEditProfile(self, self.mw)
+        dialog.ShowModal()
+ 
+    def getInfo(self):
+        info = ""
+        name = config.get("profile", "name")
+        text = config.get("profile", "text")
+        addr = config.get("client", "own_hostname")
+        
+        if not name == "":
+            info = info + name + "  (" + addr + ")"
+        else:
+            info = info + addr
+        
+        if not text == "":
+            if not info == "":
+                info = info + "\n"
+            info = info + text
 
+        if info == "":
+            info = "..."
+            self.hasinfo = False
+        else:
+            self.hasinfo = True
+        
+        return info
+    
+    def updateInfo(self):
+        self.avatar.SetBitmap(self.getAvatarBitmap())
+        self.avatar.Refresh()
+        self.infolabel.SetLabel("%s" % (self.getInfo()))
+        self.Layout()
+        self.Refresh()
+    
+    def getSplitterHeight(self):
+        bitmap = self.avatar.GetBitmap()
+        return 7+bitmap.GetHeight()
+        
+class BuddyInfoBar(wx.Panel):
+    def __init__(self, parent, buddy):
+        wx.Panel.__init__(self, parent, -1)
+        
+        self.parent     = parent
+        self.buddy      = buddy
+        self.avatar     = wx.StaticBitmap(self, -1, wx.EmptyBitmap(64, 64))
+        self.infolabel  = wx.TextCtrl(self, wx.ID_ANY, style = wx.TRANSPARENT_WINDOW | wx.TRANSPARENT | wx.NO_BORDER)
+        self.infolabel.SetEditable(False)
+        self.infolabel.SetBackgroundColour(self.GetBackgroundColour())
+        
+        self.hasavatar  = False
+        self.hasinfo    = False
+        
+        self.updateInfo()
+        self.doLayout()
+        
+    def doLayout(self):
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(self.avatar, 0, wx.ALL, 5)
+        sizer.Add(self.infolabel, 1, wx.ALL|wx.EXPAND, 5)
+        self.SetSizer(sizer)
+        self.Layout()
+    
+    def getAvatarBitmap(self):
+        if self.buddy.profile_avatar_object <> None:
+            bitmap = self.buddy.profile_avatar_object
+            self.hasavatar = True;
+        else:
+            bitmap = wx.Bitmap(os.path.join(config.ICON_DIR, "torchat.png"), wx.BITMAP_TYPE_PNG)
+            self.hasavatar = False;
+        return bitmap
+    
+    def getInfo(self):
+        info = ""
+        name = self.buddy.profile_name
+        text = self.buddy.profile_text
+        addr = self.buddy.address
+        
+        if not name == "":
+            info = info + name + "  (" + addr + ")"
+        else:
+            info = info + addr
+        
+        if not text == "":
+            if not info == "":
+                info = info + "\n"
+            info = info + text
+
+        if info == "":
+            info = "..."
+            self.hasinfo = False
+        else:
+            self.hasinfo = True
+        
+        return info
+    
+    def updateInfo(self):
+        self.avatar.SetBitmap(self.getAvatarBitmap())
+        self.avatar.Refresh()
+        self.infolabel.SetLabel("%s" % (self.getInfo()))
+        self.Layout()
+        self.Refresh()
+    
+    def getSplitterHeight(self):
+        if self.hasavatar or self.hasinfo:
+            bitmap = self.avatar.GetBitmap()
+            return 7+bitmap.GetHeight()
+        else:
+            return 1
+    
 class ChatWindow(wx.Frame):
     def __init__(self, main_window, buddy, message="",
                                     hidden=False,
@@ -1111,19 +1310,37 @@ class ChatWindow(wx.Frame):
         self.mw = main_window
         self.buddy = buddy
         self.unread = 0
+        self.dialogOpen = False
         self.updateTitle()
-
+        
+        # global chatlogs
+        if config.getint("options", "enable_chatlogs_globaly"):
+            self.log("")
+        
         self.splitter = wx.SplitterWindow(
             self, -1,
-            style=wx.SP_3D |
-                  wx.SP_BORDER |
+            style=wx.SP_NOBORDER |
                   wx.SP_LIVE_UPDATE
         )
+        
+        self.splitter_top = wx.SplitterWindow(
+            self.splitter, -1,
+            style=wx.SP_NOBORDER|wx.SP_LIVE_UPDATE
+        )
+        
+        self.panel_buddy = BuddyInfoBar(self.splitter_top, self.buddy)
+        self.panel_upper = wx.Panel(self.splitter_top, -1)
         self.panel_lower = wx.Panel(self.splitter, -1)
-        self.panel_upper = wx.Panel(self.splitter, -1)
+        
         self.splitter.SetMinimumPaneSize(50)
         self.splitter.SetSashGravity(1)
         self.splitter.SetSashSize(3)
+        
+        self.splitter_top.SetMinimumPaneSize(1)
+        self.splitter_top.SetSashGravity(0)
+        self.splitter_top.SetSashSize(3)
+        
+        self.manualslash = False
 
         # incoming text (upper area)
         self.txt_in = wx.TextCtrl(
@@ -1145,7 +1362,6 @@ class ChatWindow(wx.Frame):
                   wx.TE_RICH2 |
                   wx.BORDER_SUNKEN
         )
-
         self.doLayout() # set the sizers
 
         # restore peviously saved sash position
@@ -1178,6 +1394,8 @@ class ChatWindow(wx.Frame):
 
         self.Bind(wx.EVT_ACTIVATE, self.onActivate)
         self.txt_in.Bind(wx.EVT_CONTEXT_MENU, self.onContextMenu)
+        
+        self.splitter_top.Bind(wx.EVT_SPLITTER_SASH_POS_CHANGED, self.onSplitterSashPositionChanged)
 
         # file drop target
         self.txt_in.SetDropTarget(DropTarget(self.mw, self.buddy))
@@ -1185,28 +1403,42 @@ class ChatWindow(wx.Frame):
         # Only the upper part of the chat window will
         # accept files. The lower part only text and URLs
         self.txt_out.DragAcceptFiles(False)
-
-        self.Bind(wx.EVT_CHILD_FOCUS, self.onChildFocus)
+        
+        self.panel_upper.Bind(wx.EVT_CHILD_FOCUS, self.onSpecialChildFocus);
+        #self.Bind(wx.EVT_CHILD_FOCUS, self.onChildFocus)
+        #self.panel_buddy.infolabel.Bind(wx.EVT_TEXT_ENTER, self.onSpecialChildFocus)
 
         if not hidden:
             self.Show()
 
         self.mw.chat_windows.append(self)
         self.onBuddyStatusChanged()
+    
+    def onSpecialChildFocus(self, evt):
+        print "onSpecialChildFocus"
+        self.txt_out.SetFocus()
+        evt.Skip()
 
     def doLayout(self):
         outer_sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer_upper = wx.BoxSizer(wx.VERTICAL)
         sizer_lower = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_upper = wx.BoxSizer(wx.HORIZONTAL)
+
         sizer_upper.Add(self.txt_in, 1, wx.ALL|wx.EXPAND, 0)
         self.panel_upper.SetSizer(sizer_upper)
+        
         sizer_lower.Add(self.txt_out, 1, wx.ALL|wx.EXPAND, 0)
         self.panel_lower.SetSizer(sizer_lower)
-        self.splitter.SplitHorizontally(self.panel_upper, self.panel_lower)
+        
+        self.splitter_top.SplitHorizontally(self.panel_buddy, self.panel_upper)
+        self.splitter.SplitHorizontally(self.splitter_top, self.panel_lower)
+
         outer_sizer.Add(self.splitter, 1, wx.ALL|wx.EXPAND, 0)
+        
         self.SetSizer(outer_sizer)
         self.Layout()
-
+        self.splitter_top.SetSashPosition(self.panel_buddy.getSplitterHeight(), True)
+        
     def onShow(self, evt):
         # always make sure we are at the end when showing the window
         wx.CallAfter(self.txt_in.AppendText, "")
@@ -1219,8 +1451,11 @@ class ChatWindow(wx.Frame):
         file.close()
 
     def insertBackLog(self):
-        old = os.path.join(config.getDataDir(), "disabled_%s.log" % self.buddy.address)
-        cur = os.path.join(config.getDataDir(), "%s.log" % self.buddy.address)
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        old = os.path.join(path, "disabled_%s.log" % self.buddy.address)
+        cur = os.path.join(path, "%s.log" % self.buddy.address)
         if os.path.exists(cur):
             self.insertBackLogContents(cur)
             self.writeHintLine(os.linesep + "*** " + lang.LOG_IS_ACTIVATED % cur)
@@ -1254,11 +1489,12 @@ class ChatWindow(wx.Frame):
         else:
             title = ""
 
-        title += self.buddy.address
-        if self.buddy.name != "":
-            title += " (%s)" % self.buddy.name
-
-        self.SetTitle(title + " %s" % config.getProfileLongName())
+        title += self.buddy.getDisplayNameOrAddress()
+        #if self.buddy.name != "":
+        #    title += " (%s)" % self.buddy.name
+        
+        self.SetTitle(title + " -- Torchat %s" % config.getProfileShortName())
+        #self.SetTitle(title + " %s" % config.getProfileLongName())
 
     def getTitleShort(self):
         t = self.GetTitle()
@@ -1270,8 +1506,24 @@ class ChatWindow(wx.Frame):
             # https://sourceforge.net/tracker/?func=detail&atid=109863&aid=665381&group_id=9863
             self.txt_in.ScrollLines(-1)
             self.txt_in.ScrollLines(1)
+    
+    def getNicknameColor(self, nickname):
+        colors = config.get("gui", "nickname_colors").split(',')
+        charsum = 0
+        for c in nickname:
+            charsum = charsum + ord(c)
+        index = charsum%len(colors)
+        return colors[index]
 
     def writeColored(self, color, name, text):
+        # DO SOME GROUPCHAT MAGIC
+        regex = re.compile("^(<([^>]+)> )",re.IGNORECASE|re.UNICODE)
+        match = regex.search(text)
+        if match:
+            nick  = match.group(1)
+            name  = match.group(2)
+            color = self.getNicknameColor(name)
+            text  = text.replace(nick, "")
         # this method will write to the chat window and
         # will also write to the log file if logging is enabled.
         self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_time_stamp")))
@@ -1284,8 +1536,12 @@ class ChatWindow(wx.Frame):
             self.txt_in.SetDefaultStyle(wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)))
         self.txt_in.write(text + os.linesep)
         self.workaroundScrollBug()
+        
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
 
-        if os.path.exists(os.path.join(config.getDataDir(), "%s.log" % self.buddy.address)):
+        if os.path.exists(os.path.join(path, "%s.log" % self.buddy.address)):
             logtext = "%s %s: %s" % (time.strftime("(%Y-%m-%d %H:%M)"), name, text)
             self.log(logtext)
 
@@ -1298,6 +1554,25 @@ class ChatWindow(wx.Frame):
             self.txt_in.SetDefaultStyle(wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)))
 
         self.workaroundScrollBug()
+    
+    def writeSystemLine(self, line):
+        self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_time_stamp")))
+        self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
+        self.txt_in.write(line + os.linesep)
+        if config.getint("gui", "color_text_use_system_colors") == 0:
+            self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_text_fore")))
+        else:
+            self.txt_in.SetDefaultStyle(wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)))
+
+        self.workaroundScrollBug()
+        
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        
+        if os.path.exists(os.path.join(path, "%s.log" % self.buddy.address)):
+            logtext = "%s %s" % (time.strftime("(%Y-%m-%d %H:%M)"), line)
+            self.log(logtext)
 
     def notify(self, name, message):
         #needs unicode
@@ -1308,8 +1583,9 @@ class ChatWindow(wx.Frame):
             self.updateTitle()
 
             if config.getint("gui", "notification_popup"):
-                message = textwrap.fill(message, 40)
-                tc_notification.notificationWindow(self.mw, name, message, self.buddy)
+                if not self.isNotifyDisabled():
+                    message = textwrap.fill(message, 40)
+                    tc_notification.notificationWindow(self.mw, name, message, self.buddy)
 
         if not self.IsShown():
             self.mw.taskbar_icon.blink()
@@ -1338,10 +1614,21 @@ class ChatWindow(wx.Frame):
         # no matter which child just got focus, we give
         # it back to the lower text panel since this is the
         # only control that should ever own the keyboard.
-        self.txt_out.SetFocus()
+        if not self.dialogOpen:
+            self.txt_out.SetFocus()
+        
         evt.Skip()
+        
 
     def onClose(self, evt):
+        if config.getint("options", "confirm_close_chat"):
+            dlg = wx.MessageDialog(self, lang.D_WARN_CLOSE_CHATWINDOW_MESSAGE, lang.D_WARN_CLOSE_CHATWINDOW_TITLE, wx.YES_NO | wx.ICON_QUESTION)
+            if dlg.ShowModal() == wx.ID_YES:
+                self.doClose()
+        else:
+            self.doClose()
+    
+    def doClose(self):
         w,h = self.GetSize()
         config.set("gui", "chat_window_width", w)
         config.set("gui", "chat_window_height", h)
@@ -1357,6 +1644,13 @@ class ChatWindow(wx.Frame):
         if evt.GetKeyCode() == wx.WXK_RETURN and not evt.ShiftDown():
             self.onSend(evt)
         else:
+            if evt.ControlDown():
+                # ENABLE COPY
+                if evt.GetKeyCode() == ord('C'):
+                    self.onCopy(evt)
+                # CLOSE
+                if evt.GetKeyCode() == ord('W'):
+                    self.onClose(evt)
             # shift-enter will produce 0x0b (vertical tab) (only on windows!)
             # we will deal with this later in the onSend method
             evt.Skip()
@@ -1381,22 +1675,39 @@ class ChatWindow(wx.Frame):
                               "[%s] %s" % (lang.NOTICE_DELAYED, text))
 
     def onURL(self, evt):
-        #all URL mouse events trigger this
-        if evt.GetMouseEvent().GetEventType() == wx.wxEVT_LEFT_DOWN:
-            #left button down, now we need the URL
-            start = evt.GetURLStart()
-            end = evt.GetURLEnd()
-            url = self.txt_in.GetRange(start, end)
-            #TODO: is this the way to go? better make it a config option.
-            wx.LaunchDefaultBrowser(url)
+        # All URL mouse events trigger this
+        # Get URL
+        start = evt.GetURLStart()
+        end = evt.GetURLEnd()
+        url = self.txt_in.GetRange(start, end)
+        # Get URL Type
+        if url.find('file:///') == 0:
+            if evt.GetMouseEvent().GetEventType() == wx.wxEVT_LEFT_DOWN:
+                wx.LaunchDefaultBrowser(url)
+            else:
+                evt.Skip()
         else:
-            evt.Skip()
+            # Filter by mouse event
+            if evt.GetMouseEvent().GetEventType() == wx.wxEVT_LEFT_DCLICK:
+                # Open url in default browser
+                # TODO: Open in torbrowser
+                wx.LaunchDefaultBrowser(url)
+            elif evt.GetMouseEvent().GetEventType() == wx.wxEVT_LEFT_DOWN:
+                #left button down, copy to clipboard
+                if not wx.TheClipboard.IsOpened():
+                    clipdata = wx.TextDataObject()
+                    clipdata.SetText(url)
+                    wx.TheClipboard.Open()
+                    wx.TheClipboard.SetData(clipdata)
+                    wx.TheClipboard.Close()
+            else:
+                evt.Skip()
 
     def onContextMenu(self, evt):
         menu = wx.Menu()
 
         id = wx.NewId()
-        item = wx.MenuItem(menu, id, lang.CPOP_COPY)
+        item = wx.MenuItem(menu, id, '&Copy\tCtrl+C')
         self.Bind(wx.EVT_MENU, self.onCopy, id=id)
         menu.AppendItem(item)
         sel_from, sel_to = self.txt_in.GetSelection()
@@ -1434,11 +1745,23 @@ class ChatWindow(wx.Frame):
             item = wx.MenuItem(menu, wx.NewId(), lang.MPOP_DELETE_AND_STOP_LOG)
             menu.AppendItem(item)
             menu.Bind(wx.EVT_MENU, self.onDeleteLog, item)
+        
+        menu.AppendSeparator()
+        
+        if not self.isNotifyDisabled():
+            item = wx.MenuItem(menu, wx.NewId(), "Disable pop-up notifications")
+            menu.AppendItem(item)
+            menu.Bind(wx.EVT_MENU, self.onDisableNotifications, item)
+        else:
+            item = wx.MenuItem(menu, wx.NewId(), "Enable pop-up notifications")
+            menu.AppendItem(item)
+            menu.Bind(wx.EVT_MENU, self.onEnableNotifications, item)
 
         self.PopupMenu(menu)
         menu.Destroy()
 
     def onCopy(self, evt):
+        print "onCopy called"
         sel_from, sel_to = self.txt_in.GetSelection()
         if sel_from == sel_to:
             return
@@ -1459,51 +1782,100 @@ class ChatWindow(wx.Frame):
 
     def onEditBuddy(self, evt):
         dialog = DlgEditContact(self, self.mw, self.buddy)
+        self.dialogOpen = True
         dialog.ShowModal()
+        self.onBuddyChanged()
 
     def onBuddyStatusChanged(self):
         bmp = getStatusBitmap(self.buddy.status)
         icon = wx.IconFromBitmap(bmp)
         self.SetIcon(icon)
+        self.onBuddyChanged()
 
-    def onBuddyAvatarChanged(self):
-        # nothing to to yet
+    def onBuddyAvatarChanged(self, buddy):
+        self.buddy = buddy
+        self.onBuddyChanged()
         pass
 
-    def onBuddyProfileChanged(self):
-        # nothing to to yet
+    def onBuddyProfileChanged(self, buddy):
+        self.buddy = buddy
+        self.onBuddyChanged()
         pass
 
     def isLoggingActivated(self):
-        return os.path.exists(os.path.join(config.getDataDir(), '%s.log' % self.buddy.address))
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        return os.path.exists(os.path.join(path, '%s.log' % self.buddy.address))
+    
+    def isNotifyDisabled(self):
+        excluded_users = config.get("gui", "notification_excluded_users").split(",")
+        try:
+            i = excluded_users.index(self.buddy.address)
+        except ValueError:
+            i = -1
+        if i < 0:
+            return False
+        else:
+            return True
 
     def hasOldLog(self):
-        return os.path.exists(os.path.join(config.getDataDir(), 'disabled_%s.log' % self.buddy.address))
-
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        return os.path.exists(os.path.join(path, 'disabled_%s.log' % self.buddy.address))
+    
+    def onDisableNotifications(self, evt):
+        buddy_address = self.buddy.address
+        if not self.isNotifyDisabled():
+            excluded_users = config.get("gui", "notification_excluded_users").split(",")
+            excluded_users.append(buddy_address)
+            config.set("gui", "notification_excluded_users", ",".join(excluded_users))
+    
+    def onEnableNotifications(self, evt):
+        buddy_address = self.buddy.address
+        if self.isNotifyDisabled():
+            excluded_users = config.get("gui", "notification_excluded_users").split(",")
+            index = excluded_users.index(buddy_address)
+            excluded_users.pop(index)
+            config.set("gui", "notification_excluded_users", ",".join(excluded_users))
+        
     def onActivateLog(self, evt):
-        old = os.path.join(config.getDataDir(), "disabled_%s.log" % self.buddy.address)
-        cur = os.path.join(config.getDataDir(), "%s.log" % self.buddy.address)
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        old = os.path.join(path, "disabled_%s.log" % self.buddy.address)
+        cur = os.path.join(path, "%s.log" % self.buddy.address)
         if os.path.exists(old):
             shutil.move(old, cur)
         self.log("") # this will create it
         self.writeColored(config.get("gui", "color_nick_myself"), "***", "[%s]" % lang.LOG_STARTED)
 
     def onStopLog(self, evt):
-        old = os.path.join(config.getDataDir(), "disabled_%s.log" % self.buddy.address)
-        cur = os.path.join(config.getDataDir(), "%s.log" % self.buddy.address)
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        old = os.path.join(path, "disabled_%s.log" % self.buddy.address)
+        cur = os.path.join(path, "%s.log" % self.buddy.address)
         if os.path.exists(cur):
             self.writeColored(config.get("gui", "color_nick_myself"), "***", "[%s]" % lang.LOG_STOPPED)
             shutil.move(cur, old)
 
     def onDeleteLog(self, evt):
-        old = os.path.join(config.getDataDir(), "disabled_%s.log" % self.buddy.address)
-        cur = os.path.join(config.getDataDir(), "%s.log" % self.buddy.address)
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        old = os.path.join(path, "disabled_%s.log" % self.buddy.address)
+        cur = os.path.join(path, "%s.log" % self.buddy.address)
         tc_client.wipeFile(old)
         tc_client.wipeFile(cur)
         self.writeHintLine("*** %s" % lang.LOG_DELETED)
 
     def log(self, msg):
-        file_name = os.path.join(config.getDataDir(), "%s.log" % self.buddy.address)
+        path = config.get("logging", "chatlog_path")
+        if path == "":
+            path = config.getDataDir()
+        file_name = os.path.join(path, "%s.log" % self.buddy.address)
         if not os.path.exists(file_name):
             f = open(file_name, "w")
             os.chmod(file_name, 0600)
@@ -1514,6 +1886,17 @@ class ChatWindow(wx.Frame):
         if msg <> "":
             f.write((msg + os.linesep).encode("UTF-8"))
         f.close()
+    
+    def onSplitterSashPositionChanged(self, evt):
+        newpos = self.splitter_top.GetSashPosition()
+        if not newpos == self.panel_buddy.getSplitterHeight():
+            self.manualslash = True
+    
+    def onBuddyChanged(self):
+        self.updateTitle()
+        self.panel_buddy.updateInfo()
+        if not self.manualslash:
+            self.splitter_top.SetSashPosition(self.panel_buddy.getSplitterHeight(), True)
 
 
 class BetterFileDropTarget(wx.FileDropTarget):
@@ -1618,6 +2001,8 @@ class FileTransferWindow(wx.Frame):
         self.completed = False
         self.error = False
         self.error_msg = ""
+        self.autosave = False
+        self.alldone = False
 
         if not receiver:
             self.is_receiver = False
@@ -1649,6 +2034,15 @@ class FileTransferWindow(wx.Frame):
             # SetDefault() does not seem to work in a wx.Frame.
             self.btn_save = wx.Button(self.panel, wx.ID_SAVEAS, lang.BTN_SAVE_AS)
             self.btn_save.Bind(wx.EVT_BUTTON, self.onSave)
+            # Notify user
+            self.chatMessage('You are receiving "' + self.file_name + '"')
+            # Attempt to auto-save the file
+            if self.autoSave():
+                self.btn_save.SetLabel("Auto saving")
+                self.btn_save.Enable(False)
+        else:
+            self.chatMessage('You are sending "' + self.file_name + '"')
+                
             
         self.btn_cancel = wx.Button(self.panel, wx.ID_CANCEL, lang.BTN_CANCEL)
         self.btn_cancel.Bind(wx.EVT_BUTTON, self.onCancel)
@@ -1724,10 +2118,20 @@ class FileTransferWindow(wx.Frame):
             self.progress_bar.SetValue(100)
             if self.is_receiver:
                 if self.file_name_save != "":
+                    self.chatMessage('Received "file:///' + self.file_name_save.replace(' ', '%20') + '"')
                     self.btn_cancel.SetLabel(lang.BTN_CLOSE)
                     self.transfer_object.close() #this will actually save the file
+                    if self.autosave:
+                        self.Close();
+                else:
+                    self.chatMessage('Received file "' + self.file_name + '" is ready to be saved...')
             else:
-                self.btn_cancel.SetLabel(lang.BTN_CLOSE)
+                # Prevent displaying of multiple messages while the event is still firing...
+                if not self.alldone:
+                    self.alldone = True
+                    self.chatMessage('Successfully sent file "' + self.file_name + '"')
+                #self.btn_cancel.SetLabel(lang.BTN_CLOSE)
+                self.Close();
 
     def onDataChange(self, total, complete, error_msg=""):
         #will be called from the FileSender/FileReceiver-object in the
@@ -1749,14 +2153,81 @@ class FileTransferWindow(wx.Frame):
         except:
             pass
         self.Close()
+    
+    def autoSave(self):
+        basepath = config.getUserCustomDir()
+        
+        # Check if the path exists, if not, autosave cannot continue
+        if basepath == "":
+            return False
+        
+        # We want to store files in a user folder
+        if self.buddy.name != "":
+            buddy_dir   = self.buddy.name + ' ' + self.buddy.address
+        else:
+            buddy_dir   = self.buddy.address
+        
+        # Create full path, strip invalid chars from username
+        fullpath    = os.path.join(basepath, re.sub('[\/\\\:\*\?\"\<\>\|]+', '', buddy_dir)); 
+        
+        if not os.path.isdir(fullpath):
+            try:
+                os.makedirs(fullpath)
+            except OSError:
+                return False
+        
+        # We need more info the file
+        fullname = self.file_name;
+        basename, extension = os.path.splitext(fullname)
+        # Create the filepath
+        filepath   =  os.path.join(fullpath, fullname)
+        # Create a counter
+        counter = 1;
+        
+        while os.path.exists(filepath):
+            filepath =  os.path.join(fullpath, basename + ' (renamed ' + str(counter) + ')' + extension)
+            counter += 1
+        
+        # Tell the FileReciever we want to save the file on our location
+        self.transfer_object.setFileNameSave(filepath)
+        if not self.transfer_object.file_handle_save:
+            error = self.transfer_object.file_save_error
+            wx.MessageBox(lang.D_WARN_FILE_SAVE_ERROR_MESSAGE % (filepath, error),
+                          lang.D_WARN_FILE_SAVE_ERROR_TITLE)
+            self.file_name_save = ""
+            return False
+        
+        # Set our save file destination
+        self.file_name_save = filepath
+        self.autosave = True
+        
+        return True
+    
+    def chatMessage(self, message, notify=True):
+        chatwindow = None
+        for window in self.mw.chat_windows:
+            if window.buddy.address == self.buddy.address:
+                chatwindow = window
+        
+        if chatwindow == None:
+            chatwindow = ChatWindow(self.mw, self.buddy, "", True)
+            chatwindow.Show()
+            
+        chatwindow.writeSystemLine(message)
+        if notify:
+            chatwindow.notify(self.buddy.name, message)
 
     def onSave(self, evt):
         title = lang.DFT_FILE_SAVE_TITLE % self.buddy.getAddressAndDisplayName()
         dialog = wx.FileDialog(self, title, defaultFile=self.file_name, style=wx.SAVE)
+        
+        
         if config.isPortable():
             dialog.SetDirectory(config.getDataDir())
         else:
             dialog.SetDirectory(config.getHomeDir())
+            
+        
         if dialog.ShowModal() == wx.ID_OK:
             self.file_name_save = dialog.GetPath()
 
@@ -1778,6 +2249,7 @@ class FileTransferWindow(wx.Frame):
 
             self.btn_save.Enable(False)
             if self.completed:
+                self.chatMessage(u'Saved file "file:///' + self.file_name_save.replace(' ', '%20') + '"')
                 self.onCancel(evt)
         else:
             pass
@@ -1798,30 +2270,111 @@ class MainWindow(wx.Frame):
         self.conns = []
         self.chat_windows = []
         self.buddy_list = tc_client.BuddyList(self.callbackMessage, socket)
-
-        self.SetTitle("TorChat: %s" % config.getProfileLongName())
+        
+        self.updateTitle()
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
 
         # setup gui elements
         self.taskbar_icon = TaskbarIcon(self)
         self.main_panel = wx.Panel(self)
+        
+        self.splitter = wx.SplitterWindow(
+            self.main_panel, -1,
+            style=wx.SP_NOBORDER|wx.SP_LIVE_UPDATE
+        )
+        
+        self.splitter.SetMinimumPaneSize(1)
+        self.splitter.SetSashGravity(0)
+        self.splitter.SetSashSize(3)
+        
+        self.panel_list = wx.Panel(self.splitter, -1)
+        
         sizer = wx.BoxSizer(wx.VERTICAL)
-        self.gui_bl = BuddyList(self.main_panel, self)
-        sizer.Add(self.gui_bl, 1, wx.EXPAND)
-
+        sizer_list = wx.BoxSizer(wx.VERTICAL)
+        
+        self.gui_bl = BuddyList(self.panel_list, self)
+        self.my_info = MyInfoBar(self.splitter, self)
         self.status_switch = StatusSwitch(self.main_panel, self)
-        sizer.Add(self.status_switch, 0, wx.EXPAND)
 
+        sizer_list.Add(self.gui_bl, 1, wx.EXPAND)
+        self.panel_list.SetSizer(sizer_list)
+        
+        self.splitter.SplitHorizontally(self.my_info, self.panel_list)
+        
+        sizer.Add(self.splitter, 1, wx.EXPAND)
+        sizer.Add(self.status_switch, 0, wx.EXPAND)
         self.main_panel.SetSizer(sizer)
         sizer.FitInside(self)
+        
+        self.Layout()
+        
+        self.splitter.SetSashPosition(self.my_info.getSplitterHeight())
 
         icon = wx.Icon(name=os.path.join(config.ICON_DIR, "torchat.ico"),
                        type=wx.BITMAP_TYPE_ICO)
         self.SetIcon(icon)
+        
+        self.setMenu();
 
         if not config.getint("gui", "open_main_window_hidden"):
             self.Show()
+
+    def setMenu(self):
+        '''menubar = wx.MenuBar()
+        # CREATE MENUS
+        tcMenu = wx.Menu() # Torchat
+        clMenu = wx.Menu() # Contacts
+        hpMenu = wx.Menu() # Help
+        
+        # MENU ITEMS
+        tcItemPrefs = tcMenu.Append(wx.ID_PREFERENCES, '&Options\tCtrl+O', 'Preferences')
+        tcMenu.AppendSeparator()
+        tcItemQuit = tcMenu.Append(wx.ID_EXIT, '&Quit\tCtrl+Q', 'Quit application')
+        
+        #settings
+        
+        item = wx.MenuItem(self, wx.NewId(), lang.MPOP_SETTINGS)
+        self.AppendItem(item)
+        self.Bind(wx.EVT_MENU, self.onSettings, item)
+        
+        # EVENTS
+        self.Bind(wx.EVT_MENU, self.onPrefs, tcItemPrefs)
+        self.Bind(wx.EVT_MENU, self.onQuit, tcItemQuit)
+        
+        # ADD MENU ITEMS
+        menubar.Append(tcMenu, '&Torchat')
+        
+        self.SetMenuBar(menubar)'''
+        
+        # TOOLBAR
+        
+        toolbar = self.CreateToolBar()
+        prefTool = toolbar.AddLabelTool(wx.ID_PREFERENCES, lang.TOOL_SETTINGS_LABEL, wx.Bitmap('icons/settings.png'), shortHelp=lang.TOOL_SETTINGS_HELP)
+        addCTool = toolbar.AddLabelTool(wx.ID_ADD, lang.TOOL_ADD_CONTACT_LABEL, wx.Bitmap('icons/add.png'), shortHelp=lang.TOOL_ADD_CONTACT_HELP)
+        EditTool = toolbar.AddLabelTool(wx.ID_EDIT, lang.TOOL_EDIT_PROFILE_LABEL, wx.Bitmap('icons/edit.png'), shortHelp=lang.TOOL_EDIT_PROFILE_HELP)
+        IdntTool = toolbar.AddLabelTool(wx.ID_REFRESH, lang.TOOL_NEW_IDENTITY_LABEL, wx.Bitmap('icons/newidentity.png'), shortHelp=lang.TOOL_NEW_IDENTITY_HELP)
+        self.Bind(wx.EVT_TOOL, self.onPrefs, prefTool)
+        self.Bind(wx.EVT_TOOL, self.onAddContact, addCTool)
+        self.Bind(wx.EVT_TOOL, self.onEditProfile, EditTool)
+        self.Bind(wx.EVT_TOOL, self.onNewIdentity, IdntTool)
+        self.Bind(wx.EVT_TOOL, self.onQuit, id=wx.ID_EXIT)
+        toolbar.Realize()
+        
+        accel_tbl = wx.AcceleratorTable([
+                                         (wx.ACCEL_CTRL, ord('O'), wx.ID_PREFERENCES),
+                                         (wx.ACCEL_CTRL, ord('Q'), wx.ID_EXIT),
+                                         (wx.ACCEL_CTRL, ord('E'), wx.ID_EDIT),
+                                         (wx.ACCEL_CTRL, ord('N'), wx.ID_ADD)
+                                        ])
+        self.SetAcceleratorTable(accel_tbl)
+    
+    def updateTitle(self):
+        if len(config.get('profile', 'name')) > 0:
+            title = config.get('profile', 'name') + ' (' +config.getProfileLongName()+')'
+        else:
+            title = config.getProfileLongName()
+        self.SetTitle("TorChat: %s" % title)
             
     def setStatus(self, status):
         self.buddy_list.setStatus(status)
@@ -1835,7 +2388,7 @@ class MainWindow(wx.Frame):
         if callback_type == tc_client.CB_TYPE_CHAT:
             buddy, message = callback_data
             for window in self.chat_windows:
-                if window.buddy == buddy:
+                if window.buddy.address == buddy.address:
                     wx.CallAfter(window.process, message)
                     return
             #no window found, so we create a new one
@@ -1848,14 +2401,14 @@ class MainWindow(wx.Frame):
             while not found:
                 time.sleep(1)
                 for window in self.chat_windows:
-                    if window.buddy == buddy:
+                    if window.buddy.address == buddy.address:
                         found = True
                         break
 
         if callback_type == tc_client.CB_TYPE_OFFLINE_SENT:
             buddy = callback_data
             for window in self.chat_windows:
-                if window.buddy == buddy:
+                if window.buddy.address == buddy.address:
                     wx.CallAfter(window.notifyOfflineSent)
                     return
 
@@ -1906,11 +2459,30 @@ class MainWindow(wx.Frame):
             # called when the client is removing the buddy from the list
             # callback_data is the buddy
             for window in self.chat_windows:
-                if window.buddy == callback_data:
+                if window.buddy.address == callback_data.address:
                     wx.CallAfter(window.Close)
 
+    def onPrefs(self, evt):
+        dialog = dlg_settings.Dialog(self)
+        dialog.ShowModal()
+    
+    def onAddContact(self, evt):
+        dialog = DlgEditContact(self, self)
+        dialog.ShowModal()
+    
+    def onEditProfile(self, evt):
+        dialog = DlgEditProfile(self, self)
+        dialog.ShowModal()
+    
+    def onNewIdentity(self, evt):
+        if not self.buddy_list.changeTorIdentity():
+            wx.MessageBox(lang.D_WARN_CONTROL_CONNECTION_FAILED_MESSAGE, lang.D_WARN_CONTROL_CONNECTION_FAILED_TITLE)
+    
     def onClose(self, evt):
         self.Show(False)
+    
+    def onQuit(self, evt):
+        self.exitProgram();
 
     def exitProgram(self):
         w,h = self.GetSize()
@@ -1937,3 +2509,8 @@ class MainWindow(wx.Frame):
         # sys.exit() would spew lots of tracebacks *sometimes*,
         # so let's do it the easy way and just kill ourself:
         config.killProcess(os.getpid())
+    
+    def onProfileUpdated(self):
+        self.my_info.updateInfo()
+        self.updateTitle()
+        self.splitter.SetSashPosition(self.my_info.getSplitterHeight())

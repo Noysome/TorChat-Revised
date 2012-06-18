@@ -1,13 +1,54 @@
-version 0.9.9.552 (master branch, not yet released)
-- added Italian translation (thanks to HostFat) 
-- improve/update polish translation (thanks to Szary Czlowiek)
-- add ability to copy TorChat ID to clipboard
-- fix foreground colour of hint windows and notification windows 
-  to always match current desktop theme
+version 0.9.9.550.rev10
+- 'New Tor Identity' button and context menu item
+- Cleaned up settings-dialog
+- Added settings:
+	- Confirm on closing chat window
+	- TOR Control ports
+	- Enable chatlogs globaly
+	- Chatlog directory
+	- Language dropdown
+	- Clear tor-cache on start-up (tor_data folder)
+	- Download folder
+- Added new notification-method: 'simple', same as 'generic', but without the animations
+- Text in the buddy's Infobar is now selectable and can be copied
+- Fixed focus bug where the text-input of the chatwindow kept getting focus no matter 
+  where you clicked, or opened dialogs
+- Better tooltips
+- Better use of translation files for new features
+- Updated TOR to its latests build
+@TODO:
+- Translate newer options
 
-version 0.9.9.551
-- Added Swedish translation (thanks to Åke Engelbrektson)
-- Windows: update the bundled tor.exe to current stable version 0.2.2.35
+
+version 0.9.9.550.rev9
+- Fixed wrong config option format for groupchat-mod nickname colours
+- Included torchat ID in the Infobar
+- Fixed "crash-on-set-avatar" bug (wrong calculation of cropped format)
+- Infobar design tweaks
+
+version 0.9.9.550.rev8
+- Confirm on close chat window
+- Multi-coloured nicknames support for the existing groupchat-mod (mod not included)
+- Enabling/disabling pop-up notifications per user
+
+version 0.9.9.550.rev1 to rev7
+- Crop non-square avatars
+- Push updated buddy-details to the buddylist and chatwindow
+- Better way to find the chatwindow
+- Buddy Infobar (avatar, profilename and profile text)
+- File handling: save to folder per contact, auto-close completed transfers
+- Buddylist is sorted by status
+- Toolbar
+- Copy works in chatwindow
+- Keyboard shortcuts: 
+	- CTRL+C (Copy),
+	- CTRL+W (Close window),
+	- CTRL+Q (Exit program), 
+	- CTRL+N (Add buddy),
+	- CTRL+E (Edit profile),
+	- CTRL+O (Settings)
+- Better window-titles
+- Names instead of addresses in buddylist
 
 version 0.9.9.550
 - fix some string encoding problems (and crashes) with 

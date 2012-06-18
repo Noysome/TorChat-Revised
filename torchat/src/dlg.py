@@ -20,9 +20,9 @@ import config
 import textwrap
 
 
-def wrap(text):
-    if len(text) > 30:
-        text = textwrap.fill(text, 20)
+def wrap(text, length=20):
+    if len(text) > length+10:
+        text = textwrap.fill(text, length)
     return text
 
 class Panel(wx.Panel):
@@ -121,6 +121,16 @@ class Text(Control):
             self.panel.addItem(box, 1, flags=wx.EXPAND, new_line=True)
         else:
             self.panel.addItem(box, 1, new_line=True)
+
+
+class Dropdown(Control):
+    def __init__(self, panel, label, default, options):
+        Control.__init__(self, panel, label, default)
+        self.wx_ctrl = wx.ComboBox(self.panel, wx.ID_ANY, self.default, choices=options, style=wx.CB_DROPDOWN)
+        box = wx.BoxSizer(wx.VERTICAL)
+        box.Add(self.wx_ctrl, 0, wx.EXPAND)
+        self.panel.addItem(self.wx_label)
+        self.panel.addItem(box, 1, new_line=True)
             
 
 class Dir(Control):
@@ -163,6 +173,16 @@ class Check(Control):
     def readConfig(self, section, option):
         return config.getint(section, option)
 
+class Info(Control):
+    def __init__(self, panel, label):
+        self.panel = panel
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.wx_label = wx.StaticText(self.panel, wx.ID_ANY, wrap(label, 55))
+        self.hbox.Add(self.wx_label, 0, wx.EXPAND | wx.TOP, 5)
+        
+        self.panel.addSeparatorItem(self)
+        self.panel.newLine()
+        
 
 class Separator(Control):
     def __init__(self, panel, label):

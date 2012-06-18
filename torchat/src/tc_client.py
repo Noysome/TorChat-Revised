@@ -30,6 +30,7 @@ import tempfile
 import hashlib
 import config
 import version
+from TorCtl import TorCtl
 
 TORCHAT_PORT = 11009 #do NOT change this.
 TOR_CONFIG = "tor" #the name of the active section in the .ini file
@@ -59,8 +60,7 @@ def splitLine(text):
     """split a line of text on the first space character and return
     two strings, the first word and the remaining string. This is
     used for parsing the incoming messages from left to right since 
-    the command and its arguments are all delimited by spaces and
-    the command may not contain spaces"""
+    the command and its arguments are all delimited by spaces"""
     sp = text.split(" ")
     try:
         a = sp[0]
@@ -96,11 +96,7 @@ def encodeLF(blob):
     # delimiter which I chose to be 0x0a and because 0x0a is
     # often referred to as "newline" I call the chunks of
     # encoded data between them "lines" and each "line" is 
-    # representing exactly one protocol message. 
-    #
-    # The first word of each line will be the command and 
-    # may only consist of [a..z] or underscore, see the
-    # individual message classes for detailed descriptions.
+    # representing exactly one protocol message.
     return blob.replace("\\", "\\/").replace("\n", "\\n")
 
 def decodeLF(line):
@@ -186,6 +182,7 @@ class Buddy(object):
         self.bl = buddy_list
         self.address = address
         self.name = name
+        self.bl_key = -1
         self.profile_name = u""
         self.profile_text = u""
         self.profile_avatar_data = ""        # uncompressed 64*64*24 bit RGB.
@@ -204,6 +201,7 @@ class Buddy(object):
         self.count_unanswered_pings = 0
         self.active = True
         self.temporary = temporary
+        self.image_idx = 0
         self.startTimer()
 
     def connect(self):
@@ -520,10 +518,22 @@ class Buddy(object):
 
     def getDisplayName(self):
         if self.name != "":
-            line = "%s (%s)" % (self.address, self.name)
+            """line = "%s (%s)" % (self.address, self.name)"""
+            line = self.name
         else:
             line = self.address
         return line
+    
+    def getStatusOrder(self):
+        if self.status == STATUS_ONLINE:
+            return 0
+        if self.status == STATUS_AWAY:
+            return 1
+        if self.status == STATUS_XA:
+            return 2
+        if self.status == STATUS_HANDSHAKE:
+            return 3
+        return 4
 
 
 class BuddyList(object):
@@ -541,6 +551,7 @@ class BuddyList(object):
     def __init__(self, callback, socket=None):
         print "(1) initializing buddy list"
         self.gui = callback
+        self.torctrlcon = None
 
         startPortableTor()
 
@@ -601,6 +612,24 @@ class BuddyList(object):
         self.own_avatar_data_alpha = ""
 
         print "(1) BuddList initialized"
+    
+    def changeTorIdentity(self):
+        global TOR_CONFIG
+        
+        controlAddr = config.get(TOR_CONFIG, "tor_server");
+        controlPort = int(config.get(TOR_CONFIG, "tor_server_control_port"));
+        controlPass = config.get(TOR_CONFIG, "tor_server_control_pass");
+        
+        if self.torctrlcon == None:
+            print "Trying to connect to %s:%s using pass %s" % (controlAddr, controlPort, controlPass)
+            self.torctrlcon = TorCtl.connect(controlAddr=controlAddr, controlPort=controlPort, passphrase=controlPass)
+            
+        if not self.torctrlcon == None:
+            print "Request new identity"
+            TorCtl.Connection.send_signal(self.torctrlcon, "NEWNYM")
+            return True
+        else:
+            return False
 
     def save(self):
         f = open(os.path.join(config.getDataDir(), "buddy-list.txt"), "w")
@@ -1090,11 +1119,7 @@ def ProtocolMsgFromLine(bl, conn, line):
     
     # each protocol message as it is transmitted and received from the socket 
     # is in the following form (which I call the "line")
-    # 
     # <command>0x20<encoded>
-    # 
-    # future extensions to the protocol might define new commands
-    # but <command> may only consist of characters [a..z] or _
     # we split it at the first space character (0x20)
     command, encoded = splitLine(line)
     
@@ -2032,12 +2057,15 @@ def startPortableTor():
         os.chdir(config.getDataDir())
         os.chdir("Tor")
         print "(1) current working directory is %s" % os.getcwd()
-        # completely remove all cache files from the previous run
-        #for root, dirs, files in os.walk("tor_data", topdown=False):
-        #    for name in files:
-        #        os.remove(os.path.join(root, name))
-        #    for name in dirs:
-        #        os.rmdir(os.path.join(root, name))
+        
+        if config.getint("options", "clear_cache_on_startup"):
+            print "(1) deleting tor_data"
+            # completely remove all cache files from the previous run
+            for root, dirs, files in os.walk("tor_data", topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
 
         # now start tor with the supplied config file
         print "(1) trying to start Tor"

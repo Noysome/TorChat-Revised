@@ -61,14 +61,17 @@ class Dialog(wx.Dialog):
         dlg.Text(self.p1, lang.DSET_NET_TOR_ADDRESS, ("tor_portable", "tor_server"), True)
         dlg.Text(self.p1, lang.DSET_NET_TOR_SOCKS, ("tor_portable", "tor_server_socks_port"))
         dlg.Text(self.p1, lang.DSET_NET_TOR_CONTROL, ("tor_portable", "tor_server_control_port"))
+        dlg.Text(self.p1, lang.DSET_NET_TOR_PASS, ("tor_portable", "tor_server_control_pass"))
         self.s_tor = dlg.Separator(self.p1, "Tor")
         dlg.Text(self.p1, lang.DSET_NET_TOR_ADDRESS, ("tor", "tor_server"), True)
         dlg.Text(self.p1, lang.DSET_NET_TOR_SOCKS, ("tor", "tor_server_socks_port"))
         dlg.Text(self.p1, lang.DSET_NET_TOR_CONTROL, ("tor", "tor_server_control_port"))
+        dlg.Text(self.p1, lang.DSET_NET_TOR_PASS, ("tor", "tor_server_control_pass"))
         dlg.Text(self.p1, lang.DSET_NET_OWN_HOSTNAME, ("client", "own_hostname"), True)
         dlg.Separator(self.p1, "Client")
         dlg.Text(self.p1, lang.DSET_NET_LISTEN_INTERFACE, ("client", "listen_interface"), True)
         dlg.Text(self.p1, lang.DSET_NET_LISTEN_PORT, ("client", "listen_port"))
+       
         self.p1.fit()
         
         portable = (tc_client.TOR_CONFIG == "tor_portable")
@@ -80,22 +83,36 @@ class Dialog(wx.Dialog):
         #3.2 user interface
         self.p2 = dlg.Panel(self.notebook)
         self.notebook.AddPage(self.p2, lang.DSET_GUI_TITLE)
-
-        self.lang = dlg.Text(self.p2, lang.DSET_GUI_LANGUAGE, ("gui", "language"))
+        
+        dlg.Separator(self.p2, "Main settings")
+        self.lang = dlg.Dropdown(self.p2, lang.DSET_GUI_LANGUAGE, ("gui", "Language"), translations.getSupportedLanguages())
         self.lang_old = self.lang.getValue()
         dlg.Check(self.p2, lang.DSET_GUI_OPEN_MAIN_HIDDEN, ("gui", "open_main_window_hidden"))
         dlg.Check(self.p2, lang.DSET_GUI_OPEN_CHAT_HIDDEN, ("gui", "open_chat_window_hidden"))
+        dlg.Check(self.p2, lang.DSET_GUI_CLEAR_CACHE_STARTUP, ("options", "clear_cache_on_startup"))
+        
+        dlg.Separator(self.p2, "Notifications")
         dlg.Check(self.p2, lang.DSET_GUI_NOTIFICATION_POPUP, ("gui", "notification_popup"))
         dlg.Text(self.p2, lang.DSET_GUI_NOTIFICATION_METHOD, ("gui", "notification_method"))
         dlg.Check(self.p2, lang.DSET_GUI_FLASH_WINDOW, ("gui", "notification_flash_window"))
         
+        dlg.Separator(self.p2, "Chatwindow")
+        dlg.Check(self.p2, lang.DSET_GUI_CONFIRM_CLOSE_CHATWINDOW, ("options", "confirm_close_chat"))
+        dlg.Check(self.p2, lang.DSET_GUI_GLOBAL_CHATLOGS, ("options", "enable_chatlogs_globaly"))
+        dlg.Dir(self.p2, lang.DSET_GUI_CHATLOG_PATH, ("logging", "chatlog_path"))
+        
+        
         #3.3 misc options
         self.p3 = dlg.Panel(self.notebook)
-        self.notebook.AddPage(self.p3, lang.DSET_MISC_TITLE)
+        self.notebook.AddPage(self.p3, lang.DSET_FILES_TITLE)
+        
         self.chk_tmp = dlg.Check(self.p3, lang.DSET_MISC_TEMP_IN_DATA, ("files", "temp_files_in_data_dir"))
-        self.dir_tmp = dlg.Dir(self.p3, lang.DSET_MISC_TEMP_CUSTOM_DIR, ("files", "temp_files_custom_dir"))
-        self.dir_tmp.setEnabled(not self.chk_tmp.getValue())
-        self.chk_tmp.wx_ctrl.Bind(wx.EVT_CHECKBOX, self.onChkTmp)
+        
+        dlg.Separator(self.p3, lang.DSET_FILES_SEP_AUTOSAVE_TITLE)
+        dlg.Info(self.p3, lang.DSET_MISC_FILES_CUSTOM_DIR_INFO)
+        self.dir_tmp = dlg.Dir(self.p3, lang.DSET_MISC_FILES_CUSTOM_DIR, ("files", "temp_files_custom_dir"))
+        '''self.dir_tmp.setEnabled(not self.chk_tmp.getValue())
+        self.chk_tmp.wx_ctrl.Bind(wx.EVT_CHECKBOX, self.onChkTmp)'''
         
         #4 fit the sizers
         outer_sizer.Fit(self)

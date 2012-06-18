@@ -94,7 +94,6 @@ class NotificationWindowGeneric(wx.Frame):
         sizer.Add(static_image, 0, wx.ALL, 5 )
 
         self.label = wx.StaticText(self.panel)
-        self.label.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOTEXT))
         self.label.SetLabel("%s\n\n%s" % (name, text))
         sizer.Add(self.label, 0, wx.ALL, 5 )
 
@@ -163,6 +162,67 @@ class NotificationWindowGeneric(wx.Frame):
     def onMouse(self, evt):
         # restart the timer to immediately end the waiting
         self.timer.Start(10, True)
+
+
+# notification_method = generic
+#
+# this is the default and works everywhere
+def notificationWindow_simple(mw, name, text, buddy):
+    NotificationWindowSimple(mw, name, text, buddy)
+
+class NotificationWindowSimple(wx.Frame):
+    def __init__(self, mw, name, text, buddy):
+        wx.Frame.__init__(self, mw,
+            style=wx.FRAME_NO_TASKBAR | wx.NO_BORDER | wx.STAY_ON_TOP)
+        self.panel = wx.Panel(self, style=wx.SIMPLE_BORDER)
+        self.panel.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOBK))
+        sizer = wx.BoxSizer()
+        self.panel.SetSizer(sizer)
+
+        if buddy.profile_avatar_object <> None:
+            bitmap = buddy.profile_avatar_object
+        else:
+            bitmap = wx.Bitmap(os.path.join(config.ICON_DIR, "torchat.png"), wx.BITMAP_TYPE_PNG)
+        static_image = wx.StaticBitmap(self.panel, -1, bitmap)
+        sizer.Add(static_image, 0, wx.ALL, 5 )
+
+        self.label = wx.StaticText(self.panel)
+        self.label.SetLabel("%s\n\n%s" % (name, text))
+        sizer.Add(self.label, 0, wx.ALL, 5 )
+
+        wsizer = wx.BoxSizer()
+        wsizer.Add(self.panel, 0, wx.ALL, 0)
+        self.SetSizerAndFit(wsizer)
+        self.Layout()
+
+        # Position the window
+        cx, cy, maxx, maxy = wx.ClientDisplayRect()
+        self.w, self.h = self.GetSize()
+        self.x = maxx - self.w - 20
+        self.y = maxy - self.h - 20
+        self.SetPosition((self.x, self.y))
+        
+        # the following will prevent the focus 
+        # stealing on windows
+        self.Disable()
+        self.Show()
+        self.Enable()
+
+        self.timer = wx.Timer(self, -1)
+        self.Bind(wx.EVT_TIMER, self.onTimer)
+
+        # start animation
+        self.timer.Start(5000, True)
+
+
+    def onTimer(self, evt):
+        # Just hide the window
+        self.Hide()
+        self.Destroy()
+        
+    def onMouse(self, evt):
+        # restart the timer to immediately end the waiting
+        self.timer.Start(5000, True)
 
 
 def notificationWindow(mw, name, text, buddy):
