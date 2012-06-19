@@ -24,16 +24,25 @@ https://github.com/prof7bit/TorChat/
 
 Downloads
 ---------
-Downloads can be found in the section "Download Packages" on the following page: 
+
+Downloads can be found in the section "Download Packages" on the following page:
 https://github.com/torchatrev/TorChat-Revised/downloads
 
-The current stable version is 0.9.9.550.rev10 (released 2012-06-19)  
-Change log: https://raw.github.com/torchatrev/TorChat-Revised/torchat_py/torchat/src/changelog.txt
+The current stable version is 0.9.9.550.rev10 (released 2012-06-19)
+
+Change log:
+https://raw.github.com/torchatrev/TorChat-Revised/torchat_py/torchat/src/changelog.txt
 
 At this moment, only the windows binaries are available. The application has not been thoroughly 
-tested on Linux.
+tested on Linux. The Windows binaries are bundled with TOR 0.2.2.37
 
 (End users: please ignore the two buttons "download zip" and "download tar.gz" on
 the top of the download page, these are only source code snapshots for developers 
 and as an end user you most likely simply want to download one of the packages.)
 
+Install
+---------
+
+Windows users:
+Download the Windows Binaries zip-archive. Extract it. Then run /bin/torchat.exe to start 
+using TorChat.
