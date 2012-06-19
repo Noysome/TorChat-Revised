@@ -162,7 +162,7 @@ MSG_OFFLINE_QUEUED = u"mensagens enfileiradas offline para %s:\n\n%s"
 
 #about box
 ABOUT_TITLE = u"Sobre o TorChat"
-ABOUT_TEXT = u"""TorChat %(version)s (svn: r%(svn)s)
+ABOUT_TEXT = u"""TorChat %(version)s
   %(copyright)s
 
 Traduções:
@@ -182,12 +182,4 @@ O TorChat é distribuído na esperança de que ele seja útil, \
 mas SEM QUALQUER GARANTIA; sem que isso implique \
 em garantia de MERCANTIBILIDADE ou APTIDÃO PARA PROPÓSITOS PARTICULARES. \
 Veja a GNU General Public License para mais detalhes.
-
-*
-
-E agora para algo completamente diferente:
-
-Se acontecer de você rodar um software proprietário perto de Hannover, Alemanha ou \
-está precisando de um novo programador, sinta-se livre para considerar esse pequeno programa \
-bem como meus documentos da aplicação e enviar-me um email com suas perguntas.
 """

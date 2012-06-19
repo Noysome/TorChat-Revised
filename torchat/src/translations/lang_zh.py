@@ -162,33 +162,3 @@ MSG_OFFLINE_QUEUED = u"排队离线消息 %s:\n\n%s"
 
 #about box
 ABOUT_TITLE = u"关于TorChat"
-ABOUT_TEXT = u"""TorChat %(version)s (svn: r%(svn)s)
-  %(copyright)s
-
-Translations:
-  %(translators)s
-
-Runtime environment:
-  Python: %(python)s
-  wx: %(wx)s
-
-TorChat is free software: you can redistribute it and/or \
-modify it under the terms of the GNU General Public \
-License as published by the Free Software Foundation, \
-either version 3 of the License, or (at your option) \
-any later version.
-
-TorChat is distributed in the hope that it will be useful, \
-but WITHOUT ANY WARRANTY; without even the implied \
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. \
-See the GNU General Public License for more details.
-
-*
-
-And now for something completely different:
-
-If you happen to run a software company near Hannover, Germany and \
-are in need of a new coder, feel free to regard this little program \
-as my application documents and drop me a mail with your answer.
-
-"""

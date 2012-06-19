@@ -162,7 +162,7 @@ LOG_IS_STOPPED_OLD_LOG_FOUND = u"Mitschneiden ist gestoppt aber ein alter Mitsch
 
 #about box
 ABOUT_TITLE = u"Über TorChat"
-ABOUT_TEXT = u"""TorChat %(version)s (svn: r%(svn)s)
+ABOUT_TEXT = u"""TorChat %(version)s
   %(copyright)s
 
 Übersetzungen:
@@ -187,13 +187,4 @@ in der GNU General Public License.
 Sie sollten ein Exemplar der GNU General Public License zusammen \
 mit diesem Programm erhalten haben. Falls nicht, siehe \
 <http://www.gnu.org/licenses/>.
-
-*
-
-Und nun zu etwas vollkommen Anderem:
-
-Sollten Sie zufällig eine Software-Firma irgendwo in der Nähe \
-von Hannover betreiben und gerade Bedarf an einem neuen Programmierer \
-haben, dann betrachten Sie dieses kleine Programm einfach als meine \
-Bewerbung und schicken Sie mir eine E-Mail mit Ihrer Zusage ;-)
 """

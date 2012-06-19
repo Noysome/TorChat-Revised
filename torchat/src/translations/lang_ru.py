@@ -162,7 +162,7 @@ LOG_IS_STOPPED_OLD_LOG_FOUND = u"Логгирование выключено, н
 
 #about box
 ABOUT_TITLE = u"О программе TorChat"
-ABOUT_TEXT = u"""TorChat %(version)s (svn: r%(svn)s)
+ABOUT_TEXT = u"""TorChat %(version)s
   %(copyright)s
 
 Переводы:
@@ -181,12 +181,4 @@ TorChat is distributed in the hope that it will be useful, \
 but WITHOUT ANY WARRANTY; without even the implied \
 warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. \
 See the GNU General Public License for more details.
-
-*
-
-And now for something completely different:
-
-If you happen to run a software company near Hannover, Germany and \
-are in need of a new coder, feel free to regard this little program \
-as my application documents and drop me a mail with your answer.
 """

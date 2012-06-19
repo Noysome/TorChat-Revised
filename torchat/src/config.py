@@ -96,7 +96,7 @@ def toUnicode(unknownstr):
     else:
         return unknownstr
 
-COPYRIGHT = u"Copyright (c) 2007-2011 Bernd Kreuß <prof7bit@googlemail.com>"
+COPYRIGHT = u"Copyright (c) 2007-2011 Bernd Kreuß <prof7bit@googlemail.com>\n  Revised by TorchatRev <torchatrev@tormail.org>"
 
 DEAD_CONNECTION_TIMEOUT = 240
 KEEPALIVE_INTERVAL = 120

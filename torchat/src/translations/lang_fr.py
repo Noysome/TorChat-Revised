@@ -162,7 +162,7 @@ LOG_IS_STOPPED_OLD_LOG_FOUND = u"Désactive l'archive mais le fichier existe enc
 
 #about box
 ABOUT_TITLE = u"À propos de TorChat"
-ABOUT_TEXT = u"""TorChat %(version)s (svn: r%(svn)s)
+ABOUT_TEXT = u"""TorChat %(version)s
   %(copyright)s
 
 Traductions:
@@ -182,12 +182,4 @@ TorChat est distribué en espérant qu'il soit utile, \
 mais SANS AUCUNE GARANTIE; ni même la garantie \
 implicite de MARCHANTABILITÉ or APTITUDE À PROPOS PARTICULIER. \
 Voir la GNU General Public License pour plus de détails.
-
-*
-
-Et maintenant, une chose complètement différente:
-
-Si par chance vous gérez une compagnie de logiciel près de Hannover, Allemagne et \
-avez besoin d'un codeur, sentez-vous libre de considérer ce petit programme \
-comme mes documents d'application et m'envoyer un courriel avec votre réponse.
 """
