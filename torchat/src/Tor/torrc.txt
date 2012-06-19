@@ -4,11 +4,12 @@
 ## You will only have to make changes here if you want to run a second
 ## instance of TorChat on the same machine. See the HowTo.
 ##
-## If you want to run multiple instances, change SocksPort
+## If you want to run multiple instances, change SocksPort, ControlPort
 ## and the second (ONLY THE SECOND) port in HiddenServicePort below
 ## to something like (for example) this:
 ##
 ##   SocksPort 22209
+##	 ControlPort 22229
 ##   HiddenServicePort 11009 127.0.0.1:22009
 ##
 ## Remember to change these same numbers in torchat.ini in the sections 
@@ -21,8 +22,8 @@
 
 SocksPort 11109
 
-## we don't use the control port currently, so leave this alone
-# ControlPort 11119 
+## this is used to connect to the tor-instance to change the identity
+ControlPort 11119 
 
 ## INCOMING connections for the hidden service arrive at 11009 
 ## and will be forwarded to TorChat at 127.0.0.1:11009
