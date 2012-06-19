@@ -1,3 +1,9 @@
+version 0.9.9.550.rev11
+- Bugfixes:
+	- Too long description caused error sounds when opening chat window
+- Removed auto-focus to textinput in chatwindow, making it possible to 
+  scroll the chatwindow with a mousewheel
+
 version 0.9.9.550.rev10
 - 'New Tor Identity' button and context menu item
 - Cleaned up settings-dialog
@@ -18,7 +24,6 @@ version 0.9.9.550.rev10
 - Updated TOR to its latests build
 @TODO:
 - Translate newer options
-
 
 version 0.9.9.550.rev9
 - Fixed wrong config option format for groupchat-mod nickname colours

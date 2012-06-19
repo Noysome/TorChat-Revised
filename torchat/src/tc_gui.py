@@ -1267,7 +1267,7 @@ class BuddyInfoBar(wx.Panel):
         
         if not text == "":
             if not info == "":
-                info = info + "\n"
+                info = info + os.linesep
             info = info + text
 
         if info == "":
@@ -1281,8 +1281,7 @@ class BuddyInfoBar(wx.Panel):
     def updateInfo(self):
         self.avatar.SetBitmap(self.getAvatarBitmap())
         self.avatar.Refresh()
-        self.infolabel.SetLabel("")
-        self.infolabel.AppendText(self.getInfo())
+        self.infolabel.SetLabel(self.getInfo())
         self.Layout()
         self.Refresh()
     
@@ -1404,7 +1403,8 @@ class ChatWindow(wx.Frame):
         # accept files. The lower part only text and URLs
         self.txt_out.DragAcceptFiles(False)
         
-        self.panel_upper.Bind(wx.EVT_CHILD_FOCUS, self.onSpecialChildFocus);
+        # Set focus to txt-out - DISABLED
+        #self.panel_upper.Bind(wx.EVT_CHILD_FOCUS, self.onSpecialChildFocus);
         #self.Bind(wx.EVT_CHILD_FOCUS, self.onChildFocus)
         #self.panel_buddy.infolabel.Bind(wx.EVT_TEXT_ENTER, self.onSpecialChildFocus)
 
