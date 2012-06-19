@@ -1229,8 +1229,7 @@ class BuddyInfoBar(wx.Panel):
         self.parent     = parent
         self.buddy      = buddy
         self.avatar     = wx.StaticBitmap(self, -1, wx.EmptyBitmap(64, 64))
-        self.infolabel  = wx.TextCtrl(self, wx.ID_ANY, style = wx.TRANSPARENT_WINDOW | wx.TRANSPARENT | wx.NO_BORDER)
-        self.infolabel.SetEditable(False)
+        self.infolabel  = wx.TextCtrl(self, wx.ID_ANY, style = wx.TE_NO_VSCROLL|wx.TE_READONLY|wx.TE_MULTILINE|wx.NO_BORDER)
         self.infolabel.SetBackgroundColour(self.GetBackgroundColour())
         
         self.hasavatar  = False
@@ -1256,7 +1255,7 @@ class BuddyInfoBar(wx.Panel):
         return bitmap
     
     def getInfo(self):
-        info = ""
+        info = u""
         name = self.buddy.profile_name
         text = self.buddy.profile_text
         addr = self.buddy.address
@@ -1282,7 +1281,8 @@ class BuddyInfoBar(wx.Panel):
     def updateInfo(self):
         self.avatar.SetBitmap(self.getAvatarBitmap())
         self.avatar.Refresh()
-        self.infolabel.SetLabel("%s" % (self.getInfo()))
+        self.infolabel.SetLabel("")
+        self.infolabel.AppendText(self.getInfo())
         self.Layout()
         self.Refresh()
     
@@ -1415,7 +1415,6 @@ class ChatWindow(wx.Frame):
         self.onBuddyStatusChanged()
     
     def onSpecialChildFocus(self, evt):
-        print "onSpecialChildFocus"
         self.txt_out.SetFocus()
         evt.Skip()
 
