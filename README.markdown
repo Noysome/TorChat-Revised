@@ -28,7 +28,7 @@ Downloads
 Downloads can be found in the section "Download Packages" on the following page:
 https://github.com/torchatrev/TorChat-Revised/downloads
 
-The current stable version is 0.9.9.550.rev10 (released 2012-06-19)
+The current stable version is 0.9.9.550.rev11 (released 2012-06-19)
 
 Change log:
 https://raw.github.com/torchatrev/TorChat-Revised/torchat_py/torchat/src/changelog.txt
