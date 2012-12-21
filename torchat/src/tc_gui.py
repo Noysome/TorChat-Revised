@@ -31,7 +31,9 @@ import dlg_settings
 import translations
 import tc_notification
 import string
+import math
 from imaplib import Flags
+from datetime import datetime
 lang = translations.lang_en
 tb = config.tb
 tb1 = config.tb1
@@ -1444,10 +1446,21 @@ class ChatWindow(wx.Frame):
         wx.CallAfter(self.workaroundScrollBug)
 
     def insertBackLogContents(self, file_name):
-        file = open(file_name)
-        for line in file:
+        maxlines = 1000
+        f = open(file_name)
+        l = self.calculateBacklogLines(f)
+        lines = f.readlines()
+        
+        if l > maxlines:
+            loglink = "file:///" + file_name.replace(' ', '%20')
+            self.writeHintLine("#\n# Log file too big\n# Only showing last %i lines\n# Full log: %s\n#\n\n" % (maxlines, loglink))
+        
+        limit = lines[-maxlines:]
+        
+        for line in limit:
             self.writeHintLine(line.rstrip().decode("UTF-8"))
-        file.close()
+            
+        f.close()
 
     def insertBackLog(self):
         path = config.get("logging", "chatlog_path")
@@ -1462,7 +1475,21 @@ class ChatWindow(wx.Frame):
             if os.path.exists(old):
                 self.insertBackLogContents(old)
                 self.writeHintLine(os.linesep + "*** " + lang.LOG_IS_STOPPED_OLD_LOG_FOUND % old)
-
+    
+    def calculateBacklogLines(self, f):             
+        lines = 0
+        buf_size = 1024 * 1024
+        read_f = f.read # loop optimization
+    
+        buf = read_f(buf_size)
+        while buf:
+            lines += buf.count('\n')
+            buf = read_f(buf_size)
+        
+        f.seek(0)
+    
+        return lines
+    
     def setFontAndColor(self):
         font = wx.Font(
             config.getint("gui", "chat_font_size"),
@@ -1500,11 +1527,11 @@ class ChatWindow(wx.Frame):
         return t[:-19]
 
     def workaroundScrollBug(self):
-        if config.isWindows():
-            # workaround scroll bug on windows
-            # https://sourceforge.net/tracker/?func=detail&atid=109863&aid=665381&group_id=9863
-            self.txt_in.ScrollLines(-1)
-            self.txt_in.ScrollLines(1)
+        # workaround scroll bug on windows
+        # https://sourceforge.net/tracker/?func=detail&atid=109863&aid=665381&group_id=9863
+        self.txt_in.ScrollLines(-1)
+        self.txt_in.ShowPosition(self.txt_in.GetLastPosition())
+        self.txt_in.ScrollLines(1)
     
     def getNicknameColor(self, nickname):
         colors = config.get("gui", "nickname_colors").split(',')
@@ -1515,7 +1542,10 @@ class ChatWindow(wx.Frame):
         return colors[index]
 
     def writeColored(self, color, name, text):
-        # DO SOME GROUPCHAT MAGIC
+        # this method will write to the chat window and
+        # will also write to the log file if logging is enabled.
+        
+        # Capture groupchat nicknames and give them a bunch of different colors
         regex = re.compile("^(<([^>]+)> )",re.IGNORECASE|re.UNICODE)
         match = regex.search(text)
         if match:
@@ -1523,8 +1553,7 @@ class ChatWindow(wx.Frame):
             name  = match.group(2)
             color = self.getNicknameColor(name)
             text  = text.replace(nick, "")
-        # this method will write to the chat window and
-        # will also write to the log file if logging is enabled.
+        
         self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_time_stamp")))
         self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
         self.txt_in.SetDefaultStyle(wx.TextAttr(color))
@@ -1534,8 +1563,10 @@ class ChatWindow(wx.Frame):
         else:
             self.txt_in.SetDefaultStyle(wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)))
         self.txt_in.write(text + os.linesep)
+        
         self.workaroundScrollBug()
         
+        # write log
         path = config.get("logging", "chatlog_path")
         if path == "":
             path = config.getDataDir()
@@ -2002,6 +2033,9 @@ class FileTransferWindow(wx.Frame):
         self.error_msg = ""
         self.autosave = False
         self.alldone = False
+        self.bytesdiff = 0;
+        self.prevtime = datetime.now();
+        self.transferrate = 0
 
         if not receiver:
             self.is_receiver = False
@@ -2065,7 +2099,7 @@ class FileTransferWindow(wx.Frame):
             self.error = True
             self.completed = True
             self.bytes_complete = 0
-
+        
         percent = 100.0 * self.bytes_complete / self.bytes_total
         peer_name = self.buddy.address
         if self.buddy.name != "":
@@ -2086,7 +2120,11 @@ class FileTransferWindow(wx.Frame):
                    peer_name, percent,
                    self.bytes_complete,
                    self.bytes_total)
-
+        
+        # Append transfer rate
+        text = "%s\n%.2f KB/s%s" % (text, self.transferrate, self.getETA())
+        
+        
         try:
             # the client has no translation files,
             # it will send these english error messages
@@ -2102,7 +2140,8 @@ class FileTransferWindow(wx.Frame):
 
         # error_msg might also contain info messages like
         # "waiting", etc. which are not fatal errors
-        text = "%s    %s" % (text, error_msg_trans)
+        text = "%s\n%s" % (text, error_msg_trans)
+        
 
         # a fatal error
         if self.error:
@@ -2117,13 +2156,17 @@ class FileTransferWindow(wx.Frame):
             self.progress_bar.SetValue(100)
             if self.is_receiver:
                 if self.file_name_save != "":
-                    self.chatMessage('Received "file:///' + self.file_name_save.replace(' ', '%20') + '"')
+                    if not self.alldone:
+                        self.alldone = True
+                        self.chatMessage('Received "file:///' + self.file_name_save.replace(' ', '%20') + '"')
                     self.btn_cancel.SetLabel(lang.BTN_CLOSE)
                     self.transfer_object.close() #this will actually save the file
                     if self.autosave:
                         self.Close();
                 else:
-                    self.chatMessage('Received file "' + self.file_name + '" is ready to be saved...')
+                    if not self.alldone:
+                        self.alldone = True
+                        self.chatMessage('Received file "' + self.file_name + '" is ready to be saved...')
             else:
                 # Prevent displaying of multiple messages while the event is still firing...
                 if not self.alldone:
@@ -2135,13 +2178,58 @@ class FileTransferWindow(wx.Frame):
     def onDataChange(self, total, complete, error_msg=""):
         #will be called from the FileSender/FileReceiver-object in the
         #protocol module to update gui (called from a non-GUI thread!)
+        
+        deltabytes = complete - self.bytes_complete
+        
         self.bytes_total = total
         self.bytes_complete = complete
         self.error_msg = error_msg
+        
+        self.updateTransferStats(deltabytes)
 
         #we must use wx.Callafter to make calls into wx
         #because we are *NOT* in the context of the GUI thread here
         wx.CallAfter(self.updateOutput)
+    
+    def updateTransferStats(self, bytesdiff):
+        self.bytesdiff += bytesdiff
+        now = datetime.now();
+        timedelta = now - self.prevtime
+        seconds = self.getTimeDeltaInSeconds(timedelta)
+        
+        if seconds > 1.0:
+            self.transferrate = (self.bytesdiff/1024)/seconds
+            self.bytesdiff = 0
+            self.prevtime = now
+    
+    def getTimeDeltaInSeconds(self, timedelta):
+        return timedelta.seconds + timedelta.microseconds/1E6
+    
+    def getETA(self):
+        text = ""
+        if self.transferrate > 0:
+            kilobytes = self.bytes_total/1024
+            timetotal = kilobytes/self.transferrate
+            
+            seconds = timetotal%60
+            minutes = (timetotal/60)%60
+            hours = int(math.floor(timetotal/3600))
+            days = int(math.floor(timetotal/86400))
+            
+            if days > 0:
+                text = "%id, %ih, %im and %is" % (days, hours, minutes, seconds)
+            else:
+                if hours > 0:
+                    text = "%ih, %im and %is" % (hours, minutes, seconds)
+                else:
+                    if minutes > 0:
+                        text = "%i minutes and %i seconds" % (minutes, seconds)
+                    else:
+                        text = "%i seconds" % (seconds)
+            
+            text = ", %s" % (text)
+                
+        return text
 
     def onCancel(self, evt):
         try:
