@@ -1541,7 +1541,7 @@ class ChatWindow(wx.Frame):
         # workaround scroll bug on windows
         # https://sourceforge.net/tracker/?func=detail&atid=109863&aid=665381&group_id=9863
         self.txt_in.ScrollLines(-1)
-        #self.txt_in.ShowPosition(self.txt_in.GetLastPosition())
+        self.txt_in.ShowPosition(self.txt_in.GetLastPosition())
         #self.txt_in.ScrollLines(1)
     
     def getNicknameColor(self, nickname):
