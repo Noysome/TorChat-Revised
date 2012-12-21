@@ -190,8 +190,8 @@ copy([
 
 print "\n\ncreating the zip files"
 os.chdir("..")
-bin_zip_filename = "release\\torchat-windows-%s.zip" % version.VERSION
-src_zip_filename = "release\\torchat-source-%s.zip" % version.VERSION
+bin_zip_filename = "release\\torchat-rev-windows-%s.zip" % version.VERSION
+src_zip_filename = "release\\torchat-rev-source-%s.zip" % version.VERSION
 unlink([bin_zip_filename, src_zip_filename])
 
 # torchat-windows-x.x.x.x.zip
