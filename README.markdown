@@ -33,7 +33,7 @@ either be found in the "downloads" folder in the source, or on an external websi
 I will also release a download link to the latest version here:
 	
 1. [Source code: torchat-rev-source-0.9.9.550.rev12.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-source-0.9.9.550.rev12.zip)
-2. Windows binaries: torchat-rev-windows-0.9.9.550.rev12.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-windows-0.9.9.550.rev12.zip)
+2. [Windows binaries: torchat-rev-windows-0.9.9.550.rev12.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-windows-0.9.9.550.rev12.zip)
 
 Legacy downloads:
 https://github.com/torchatrev/TorChat-Revised/downloads
@@ -42,7 +42,7 @@ https://github.com/torchatrev/TorChat-Revised/downloads
 Install
 -------
 
-Windows users:
+**Windows users:**
 Download the Windows Binaries zip-archive. Extract it. Then run /Torchat/bin/torchat.exe 
 to fire up TorChat.
 
@@ -50,7 +50,7 @@ to fire up TorChat.
 Upgrade
 -------
 
-Windows users:
+**Windows users:**
 To update your own existing Torchat Revised installation without loosing your ID, buddylist
 or settings; simply copy "bin/torchat.exe" and "bin/Tor/tor.exe" over to your existing 
 folder and overwrite the files.
