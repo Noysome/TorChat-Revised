@@ -10,12 +10,11 @@ TorChat Revised
 
 Because the original TorChat is very basic and is lacking usability, I decided to peek 
 into the code and see if I could make some enhancements. The code is based on version
-0.9.9.550 has since seen several revisions.
+0.9.9.550 and has since seen several revisions.
 
-I have been using the revised TorChat for a while now, and it seems perfectly stable.
-
-It is 100% compatible with the regular version of TorChat. It only enhances the user 
-experience and brings some extra features. No changes were made to the protocols.
+It is 100% compatible with the official version of TorChat, as it only enhances the user 
+experience and brings some non-intrusive additional features. No changes were made to 
+the underlying protocols.
 
 For the official TorChat version, go here:
 https://github.com/prof7bit/TorChat/
@@ -28,16 +27,14 @@ https://github.com/torchatrev/TorChat-Revised/downloads
 
 The current stable release is 0.9.9.550.rev12 (released 2012-12-21)
 
+Windows users: grab the "Windows binaries" package.
+
 Change log:
 https://raw.github.com/torchatrev/TorChat-Revised/torchat_py/torchat/src/changelog.txt
-
-(End users: please ignore the two buttons "download zip" and "download tar.gz" on
-the top of the download page, these are only source code snapshots for developers 
-and as an end user you most likely simply want to download one of the packages.)
 
 Install
 ---------
 
 Windows users:
-Download the Windows Binaries zip-archive. Extract it. Then run /bin/torchat.exe to start 
-using TorChat.
+Download the Windows Binaries zip-archive. Extract it. Then run /Torchat/bin/torchat.exe 
+to fire up TorChat.
