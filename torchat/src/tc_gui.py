@@ -235,6 +235,10 @@ class PopupMenu(wx.Menu):
                 item = wx.MenuItem(self, wx.NewId(), lang.MPOP_CLEAR_OFFLINE_MESSAGES)
                 self.AppendItem(item)
                 self.Bind(wx.EVT_MENU, self.onClearOffline, item)
+            
+            item = wx.MenuItem(self, wx.NewId(), lang.MPOP_COPY_ID_TO_CLIPBOARD)
+            self.AppendItem(item)
+            self.Bind(wx.EVT_MENU, self.onCopyIdToClipboard, item)
 
             self.AppendSeparator()
 
@@ -342,6 +346,13 @@ class PopupMenu(wx.Menu):
         else:
             om = lang.MSG_OFFLINE_EMPTY % self.buddy.address
         wx.MessageBox(om, lang.MSG_OFFLINE_TITLE, wx.ICON_INFORMATION)
+    
+    def onCopyIdToClipboard(self, evt):
+        if not wx.TheClipboard.IsOpened():
+            address = wx.TextDataObject(self.buddy.address)
+            wx.TheClipboard.Open()
+            wx.TheClipboard.SetData(address)
+            wx.TheClipboard.Close()
 
     def onClearOffline(self, evt):
         try:

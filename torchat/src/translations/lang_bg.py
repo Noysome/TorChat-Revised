@@ -45,6 +45,7 @@ MPOP_ABOUT = u"Относно TorChat"
 MPOP_ASK_AUTHOR = u"Попитайте %s..."
 MPOP_SETTINGS = u"Настройки..."
 # MPOP_EDIT_MY_PROFILE = u"Edit my profile..."
+# MPOP_COPY_ID_TO_CLIPBOARD=u"Copy ID to clipboard"
 
 #chat window popup menu
 CPOP_COPY = u"Копиране"
@@ -162,23 +163,27 @@ MSG_OFFLINE_QUEUED = u"офлайн съобщения на опашка за %s
 
 #about box
 ABOUT_TITLE = u"Относно TorChat"
-ABOUT_TEXT = u"""TorChat %(version)s
-  %(copyright)s
 
-Превод:
-  %(translators)s
-
-Runtime environment:
-  Python: %(python)s
-  wx: %(wx)s
-
-TorChat е свободен софтуер: можете да го разпространявате и / или \
-модифицирате при условията на GNU General Public License както е публикуван от Free Software Foundation, \
-или версия 3, или (по ваш избор) \
-която и да е следваща версия.
-
-TorChat се разпространява с надеждата, че ще бъде от полза, \
-но БЕЗ НИКАКВИ ГАРАНЦИИ; без дори косвена \
-гаранция за ПРИГОДНОСТ ЗА ОПРЕДЕЛЕНА ЦЕЛ. \
-Вижте GNU General Public License за повече подробности.
-"""
+# #new strings
+# D_WARN_CLOSE_CHATWINDOW_TITLE = u"Torchat: Close chatwindow?"
+# D_WARN_CLOSE_CHATWINDOW_MESSAGE = u"Are you sure you want to close this window?"
+# D_WARN_CONTROL_CONNECTION_FAILED_TITLE = u"Connection failed"
+# D_WARN_CONTROL_CONNECTION_FAILED_MESSAGE = u"The control connection has failed.\nWe could not change the TOR-identity."
+# DSET_GUI_CONFIRM_CLOSE_CHATWINDOW = u"Confirm before closing a chatwindow"
+# DSET_GUI_CHATLOG_PATH = u"Chatlog directory"
+# DSET_GUI_GLOBAL_CHATLOGS = u"Save chatlogs for all contacts"
+# DSET_GUI_CLEAR_CACHE_STARTUP = u"Clear TOR-cache on start-up (tor_data)"
+# DSET_NET_TOR_PASS = u"Control password"
+# DSET_FILES_TITLE = u"Files"
+# DSET_FILES_SEP_AUTOSAVE_TITLE = u"Saving files"
+# DSET_MISC_FILES_CUSTOM_DIR = u"Downloads folder"
+# DSET_MISC_FILES_CUSTOM_DIR_INFO = u"If you want torchat to automatically save incoming files, select the folder here. If you want to manually save each file, leave it empty."
+# DEC_NEW_IDENTITIY = u"Use a new identity"
+# TOOL_SETTINGS_LABEL = u"Settings"
+# TOOL_SETTINGS_HELP = u"Open the settings"
+# TOOL_ADD_CONTACT_LABEL = u"Add contact"
+# TOOL_ADD_CONTACT_HELP = u"Add a new contact"
+# TOOL_EDIT_PROFILE_LABEL = u"Edit profile"
+# TOOL_EDIT_PROFILE_HELP = u"Edit your profile"
+# TOOL_NEW_IDENTITY_LABEL = u"New identity"
+# TOOL_NEW_IDENTITY_HELP = u"Use a new identity"

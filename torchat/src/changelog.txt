@@ -4,7 +4,9 @@ version 0.9.9.550.rev12
 	- Double "file received" notifications
 - When dealing with large backlogs, the chatwindow will now only load the last 1000 lines
 - Filetransfers now show the transfer rate and estimated remaining time
+- Added "Copy ID to clipboard" context menu
 - Windows: update the bundled tor.exe to current stable version 0.2.3.25
+- Updated language files
   
 version 0.9.9.550.rev11
 - Bugfixes:

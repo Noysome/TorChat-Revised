@@ -40,7 +40,7 @@ def readFile(filename):
         line=line.rstrip()
         if not_at_end:
             last = len(lines1)-1
-            lines1[last] = lines1[last] + "\r\n" + line
+            lines1[last] = lines1[last] + "\n" + line
         else:
             lines1.append(line)
             
@@ -55,7 +55,7 @@ def readFile(filename):
     for line in lines1:
         if in_string:
             last = len(lines2)-1
-            lines2[last] = lines2[last] + "\r\n" + line
+            lines2[last] = lines2[last] + "\n" + line
         else:
             lines2.append(line)
         
@@ -104,7 +104,7 @@ def updateTranslation(filename):
     if cnt:
         shutil.move(filename, "_" + filename)
         f = open(filename, "w")
-        f.write("\r\n".join(lang_xx_new))
+        f.write("\n".join(lang_xx_new))
         f.close
 
 #load the english reference file            

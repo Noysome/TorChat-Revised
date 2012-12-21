@@ -33,8 +33,16 @@ Change log:
 https://raw.github.com/torchatrev/TorChat-Revised/torchat_py/torchat/src/changelog.txt
 
 Install
----------
+-------
 
 Windows users:
 Download the Windows Binaries zip-archive. Extract it. Then run /Torchat/bin/torchat.exe 
 to fire up TorChat.
+
+Upgrade
+-------
+
+Windows users:
+To update your own existing Torchat Revised installation without loosing your ID, buddylist
+or settings; simply copy "bin/torchat.exe" and "bin/Tor/tor.exe" over to your existing 
+folder and overwrite the files.

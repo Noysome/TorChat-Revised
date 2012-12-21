@@ -45,6 +45,7 @@ MPOP_ABOUT = u"Über TorChat"
 MPOP_ASK_AUTHOR = u"%s fragen..."
 MPOP_SETTINGS = u"Einstellungen..."
 MPOP_EDIT_MY_PROFILE = u"Eigenes Profil bearbeiten..."
+# MPOP_COPY_ID_TO_CLIPBOARD=u"Copy ID to clipboard"
 
 #chat window popup menu
 CPOP_COPY = u"Kopieren"
@@ -61,7 +62,7 @@ D_LOG_WARNING_MESSAGE = u"Logging in Datei ist aktiviert!\n\nLogdatei: %s\n\nVer
 D_WARN_USED_PORT_TITLE = u"TorChat: Port ist bereits belegt"
 D_WARN_USED_PORT_MESSAGE = u"Eine Anwendung, wahrscheinlich eine andere TorChat-Instanz, verwendet bereits den Port %s:%s. Sie müssen andere Profile mit anderen Ports verwenden, um TorChat mehrmals starten zu können."
 
-#warning about unread messages
+# #warnig about unread messages
 D_WARN_UNREAD_TITLE = u"TorChat: Ungelesene Nachrichten"
 D_WARN_UNREAD_MESSAGE = u"Es liegen noch ungelesene Nachrichten vor. Diese würden unwiderruflich verloren gehen!\n\nMöchten sie TorChat dennoch jetzt beenden?"
 
@@ -162,29 +163,27 @@ LOG_IS_STOPPED_OLD_LOG_FOUND = u"Mitschneiden ist gestoppt aber ein alter Mitsch
 
 #about box
 ABOUT_TITLE = u"Über TorChat"
-ABOUT_TEXT = u"""TorChat %(version)s
-  %(copyright)s
 
-Übersetzungen:
-  %(translators)s
-
-Laufzeitumgebung:
-  Python: %(python)s
-  wx: %(wx)s
-
-Dieses Programm ist freie Software. Sie können es unter den \
-Bedingungen der GNU General Public License, wie von der \
-Free Software Foundation veröffentlicht, weitergeben und/oder \
-modifizieren, entweder gemäß Version 3 der Lizenz oder \
-(nach Ihrer Option) jeder späteren Version.
-
-Die Veröffentlichung dieses Programms erfolgt in der Hoffnung, \
-daß es Ihnen von Nutzen sein wird, aber OHNE IRGENDEINE GARANTIE, \
-sogar ohne die implizite Garantie der MARKTREIFE oder der \
-VERWENDBARKEIT FÜR EINEN BESTIMMTEN ZWECK. Details finden Sie \
-in der GNU General Public License.
-
-Sie sollten ein Exemplar der GNU General Public License zusammen \
-mit diesem Programm erhalten haben. Falls nicht, siehe \
-<http://www.gnu.org/licenses/>.
-"""
+# #new strings
+# D_WARN_CLOSE_CHATWINDOW_TITLE = u"Torchat: Close chatwindow?"
+# D_WARN_CLOSE_CHATWINDOW_MESSAGE = u"Are you sure you want to close this window?"
+# D_WARN_CONTROL_CONNECTION_FAILED_TITLE = u"Connection failed"
+# D_WARN_CONTROL_CONNECTION_FAILED_MESSAGE = u"The control connection has failed.\nWe could not change the TOR-identity."
+# DSET_GUI_CONFIRM_CLOSE_CHATWINDOW = u"Confirm before closing a chatwindow"
+# DSET_GUI_CHATLOG_PATH = u"Chatlog directory"
+# DSET_GUI_GLOBAL_CHATLOGS = u"Save chatlogs for all contacts"
+# DSET_GUI_CLEAR_CACHE_STARTUP = u"Clear TOR-cache on start-up (tor_data)"
+# DSET_NET_TOR_PASS = u"Control password"
+# DSET_FILES_TITLE = u"Files"
+# DSET_FILES_SEP_AUTOSAVE_TITLE = u"Saving files"
+# DSET_MISC_FILES_CUSTOM_DIR = u"Downloads folder"
+# DSET_MISC_FILES_CUSTOM_DIR_INFO = u"If you want torchat to automatically save incoming files, select the folder here. If you want to manually save each file, leave it empty."
+# DEC_NEW_IDENTITIY = u"Use a new identity"
+# TOOL_SETTINGS_LABEL = u"Settings"
+# TOOL_SETTINGS_HELP = u"Open the settings"
+# TOOL_ADD_CONTACT_LABEL = u"Add contact"
+# TOOL_ADD_CONTACT_HELP = u"Add a new contact"
+# TOOL_EDIT_PROFILE_LABEL = u"Edit profile"
+# TOOL_EDIT_PROFILE_HELP = u"Edit your profile"
+# TOOL_NEW_IDENTITY_LABEL = u"New identity"
+# TOOL_NEW_IDENTITY_HELP = u"Use a new identity"
