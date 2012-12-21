@@ -17,8 +17,8 @@ It is 100% compatible with the official version of TorChat, as it only enhances 
 experience and brings some non-intrusive additional features. No changes were made to 
 the underlying protocols.
 
-The current stable release is 0.9.9.550.rev12 (released 2012-12-21), see the change log:
-https://raw.github.com/torchatrev/TorChat-Revised/torchat_py/torchat/src/changelog.txt
+The current stable release is 0.9.9.550.rev12 (released 2012-12-21).
+For the list of changes, [see the change log](https://raw.github.com/torchatrev/TorChat-Revised/torchat_py/torchat/src/changelog.txt).
 
 For the official TorChat version, go here:
 https://github.com/prof7bit/TorChat/
@@ -27,16 +27,13 @@ https://github.com/prof7bit/TorChat/
 Downloads
 ---------
 
-Github has deprecated the downloads section. For future releases, the binaries will 
+Github has deprecated the [downloads](https://github.com/torchatrev/TorChat-Revised/downloads) section. For future releases, the binaries will 
 either be found in the "downloads" folder in the source, or on an external website.
 
 I will also release a download link to the latest version here:
 	
 1. [Source code: torchat-rev-source-0.9.9.550.rev12.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-source-0.9.9.550.rev12.zip)
 2. [Windows binaries: torchat-rev-windows-0.9.9.550.rev12.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-windows-0.9.9.550.rev12.zip)
-
-Legacy downloads:
-https://github.com/torchatrev/TorChat-Revised/downloads
 
 
 Install
