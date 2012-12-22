@@ -1,6 +1,9 @@
 version 0.9.9.550.rev13
-- Bugfix:
-	- Chatwindow appears to be blank when first opening
+- Bugfixes:
+	- Scroll bug
+	- Estimated time left was not correctly calculated
+- @TODO:
+	- Chatwindow appears to be blank when first opening (only for some contacts)
 
 version 0.9.9.550.rev12
 - Bugfixes:

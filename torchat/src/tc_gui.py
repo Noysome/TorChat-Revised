@@ -1545,9 +1545,11 @@ class ChatWindow(wx.Frame):
     def workaroundScrollBug(self):
         # workaround scroll bug on windows
         # https://sourceforge.net/tracker/?func=detail&atid=109863&aid=665381&group_id=9863
-        self.txt_in.ScrollLines(-1)
-        self.txt_in.ShowPosition(self.txt_in.GetLastPosition())
-        #self.txt_in.ScrollLines(1)
+        if config.isWindows():
+            self.txt_in.ScrollLines(-1)
+            self.txt_in.ShowPosition(self.txt_in.GetLastPosition())
+            self.txt_in.ScrollLines(1)
+            
         self.txt_in.AppendText("")
     
     def getNicknameColor(self, nickname):
@@ -2225,11 +2227,11 @@ class FileTransferWindow(wx.Frame):
     def getETA(self):
         text = ""
         if self.transferrate > 0:
-            kilobytes = self.bytes_total/1024
+            kilobytes = (self.bytes_total-self.bytes_complete)/1024
             timetotal = kilobytes/self.transferrate
             
-            seconds = timetotal%60
-            minutes = (timetotal/60)%60
+            seconds = int(math.floor(timetotal%60))
+            minutes = int(math.floor((timetotal/60)%60))
             hours = int(math.floor(timetotal/3600))
             days = int(math.floor(timetotal/86400))
             
