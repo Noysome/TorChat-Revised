@@ -1,3 +1,7 @@
+version 0.9.9.550.rev13
+- Bugfix:
+	- Chatwindow appears to be blank when first opening
+
 version 0.9.9.550.rev12
 - Bugfixes:
 	- windows: Scrollbug in chatwindow

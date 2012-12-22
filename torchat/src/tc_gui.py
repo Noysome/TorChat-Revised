@@ -1464,7 +1464,12 @@ class ChatWindow(wx.Frame):
         
         if l > maxlines:
             loglink = "file:///" + file_name.replace(' ', '%20')
-            self.writeHintLine("#\n# Log file too big\n# Only showing last %i lines\n# Full log: %s\n#\n\n" % (maxlines, loglink))
+            self.writeHintLine("#")
+            self.writeHintLine("# Log file too big")
+            self.writeHintLine("# Only showing last %i lines" % (maxlines))
+            self.writeHintLine("# Full log: %s" % (loglink))
+            self.writeHintLine("#")
+            self.writeHintLine("")
         
         limit = lines[-maxlines:]
         
@@ -1543,6 +1548,7 @@ class ChatWindow(wx.Frame):
         self.txt_in.ScrollLines(-1)
         self.txt_in.ShowPosition(self.txt_in.GetLastPosition())
         #self.txt_in.ScrollLines(1)
+        self.txt_in.AppendText("")
     
     def getNicknameColor(self, nickname):
         colors = config.get("gui", "nickname_colors").split(',')
