@@ -45,7 +45,7 @@ config_defaults = {
     ("logging", "chatlog_path") : "",
     ("files", "temp_files_in_data_dir") : 1,
     ("files", "temp_files_custom_dir") : "",
-    ("options", "confirm_close_chat") : 1,
+    ("options", "confirm_close_chat") : 0,
     ("options", "enable_chatlogs_globaly") : 0,
     ("options", "clear_cache_on_startup") : 0,
     ("gui", "language") : "en",
@@ -216,6 +216,12 @@ def getProfileShortName():
     if not profile_name  == "":
         return profile_name
     return get("client", "own_hostname")
+
+def getProfileChatName():
+    profile_name    = get("profile", "name")
+    if not profile_name == "":
+        return profile_name
+    return "myself"
 
 class OrderedRawConfigParser(ConfigParser.RawConfigParser):
     def __init__(self, defaults = None):

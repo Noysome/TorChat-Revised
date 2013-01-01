@@ -1,3 +1,11 @@
+version 0.9.9.550.rev14
+- Bugfixes:
+	- Fixed: Chatwindow appears to be blank when first opening (only for some contacts)
+- (GUI) Chatwindow will display own nickname instead of "myself" if nickname is set
+- (Settings) Notification popup method is now a dropdown list of all available options
+- (Files) Drag and Drop of multiple files now supported
+- (Files) When dropping a folder, an error message is displayed
+
 version 0.9.9.550.rev13
 - Bugfixes:
 	- Scroll bug

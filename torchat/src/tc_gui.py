@@ -1323,65 +1323,28 @@ class ChatWindow(wx.Frame):
         self.buddy = buddy
         self.unread = 0
         self.dialogOpen = False
+        self.manualslash = False
         self.updateTitle()
         
         # global chatlogs
         if config.getint("options", "enable_chatlogs_globaly"):
             self.log("")
         
-        self.splitter = wx.SplitterWindow(
-            self, -1,
-            style=wx.SP_NOBORDER |
-                  wx.SP_LIVE_UPDATE
-        )
+        # Layout elements
+        self.splitter = wx.SplitterWindow(self, -1, style=wx.SP_NOBORDER|wx.SP_LIVE_UPDATE)
+        self.splitter_top = wx.SplitterWindow(self.splitter, -1, style=wx.SP_NOBORDER|wx.SP_LIVE_UPDATE)
         
-        self.splitter_top = wx.SplitterWindow(
-            self.splitter, -1,
-            style=wx.SP_NOBORDER|wx.SP_LIVE_UPDATE
-        )
-        
+        self.panel_top = wx.Panel(self.splitter, -1)
         self.panel_buddy = BuddyInfoBar(self.splitter_top, self.buddy)
-        self.panel_upper = wx.Panel(self.splitter_top, -1)
-        self.panel_lower = wx.Panel(self.splitter, -1)
+        self.panel_txt_in = wx.Panel(self.splitter_top, -1)
+        self.panel_txt_out = wx.Panel(self.splitter, -1)
         
-        self.splitter.SetMinimumPaneSize(50)
-        self.splitter.SetSashGravity(1)
-        self.splitter.SetSashSize(3)
+        self.txt_in = wx.TextCtrl(self.panel_txt_in, -1, 
+                                style=wx.TE_READONLY | wx.TE_MULTILINE | wx.TE_AUTO_URL | wx.TE_AUTO_SCROLL | wx.TE_RICH2 | wx.BORDER_SUNKEN)
+        self.txt_out = wx.TextCtrl(self.panel_txt_out, -1, 
+                                style=wx.TE_MULTILINE | wx.TE_RICH2 | wx.BORDER_SUNKEN)
         
-        self.splitter_top.SetMinimumPaneSize(1)
-        self.splitter_top.SetSashGravity(0)
-        self.splitter_top.SetSashSize(3)
-        
-        self.manualslash = False
-
-        # incoming text (upper area)
-        self.txt_in = wx.TextCtrl(
-            self.panel_upper,
-            -1,
-            style=wx.TE_READONLY |
-                  wx.TE_MULTILINE |
-                  wx.TE_AUTO_URL |
-                  wx.TE_AUTO_SCROLL |
-                  wx.TE_RICH2 |
-                  wx.BORDER_SUNKEN
-        )
-
-        # outgoing text (lower area)
-        self.txt_out = wx.TextCtrl(
-            self.panel_lower,
-            -1,
-            style=wx.TE_MULTILINE |
-                  wx.TE_RICH2 |
-                  wx.BORDER_SUNKEN
-        )
-        self.doLayout() # set the sizers
-
-        # restore peviously saved sash position
-        lower = config.getint("gui", "chat_window_height_lower")
-        w,h = self.GetSize()
-        if lower > h - 50:
-            lower = h - 50
-        self.splitter.SetSashPosition(h - lower)
+        self.doLayout()
 
         self.setFontAndColor()
         self.insertBackLog()
@@ -1392,6 +1355,7 @@ class ChatWindow(wx.Frame):
             self.writeHintLine(om)
 
         self.txt_in.AppendText(os.linesep) #scroll to end + 1 empty line
+        self.workaroundScrollBug()
 
         if notify_offline_sent:
             self.notifyOfflineSent()
@@ -1401,17 +1365,16 @@ class ChatWindow(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self.onClose)
         self.Bind(wx.EVT_SHOW, self.onShow)
+        self.Bind(wx.EVT_ACTIVATE, self.onActivate)
+        
         self.txt_out.Bind(wx.EVT_KEY_DOWN, self.onKey)
         self.txt_in.Bind(wx.EVT_TEXT_URL, self.onURL)
-
-        self.Bind(wx.EVT_ACTIVATE, self.onActivate)
         self.txt_in.Bind(wx.EVT_CONTEXT_MENU, self.onContextMenu)
         
         self.splitter_top.Bind(wx.EVT_SPLITTER_SASH_POS_CHANGED, self.onSplitterSashPositionChanged)
 
         # file drop target
         self.txt_in.SetDropTarget(DropTarget(self.mw, self.buddy))
-
         # Only the upper part of the chat window will
         # accept files. The lower part only text and URLs
         self.txt_out.DragAcceptFiles(False)
@@ -1432,24 +1395,45 @@ class ChatWindow(wx.Frame):
         evt.Skip()
 
     def doLayout(self):
-        outer_sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer_upper = wx.BoxSizer(wx.VERTICAL)
-        sizer_lower = wx.BoxSizer(wx.HORIZONTAL)
-
-        sizer_upper.Add(self.txt_in, 1, wx.ALL|wx.EXPAND, 0)
-        self.panel_upper.SetSizer(sizer_upper)
+        self.splitter.SetMinimumPaneSize(50)
+        self.splitter.SetSashGravity(1)
+        self.splitter.SetSashSize(3)
         
-        sizer_lower.Add(self.txt_out, 1, wx.ALL|wx.EXPAND, 0)
-        self.panel_lower.SetSizer(sizer_lower)
+        self.splitter_top.SetMinimumPaneSize(1)
+        self.splitter_top.SetSashGravity(0)
+        self.splitter_top.SetSashSize(3)
         
-        self.splitter_top.SplitHorizontally(self.panel_buddy, self.panel_upper)
-        self.splitter.SplitHorizontally(self.splitter_top, self.panel_lower)
-
-        outer_sizer.Add(self.splitter, 1, wx.ALL|wx.EXPAND, 0)
+        gridsizer_main = wx.GridSizer(1, 1, 0, 0)
+        gridsizer_top = wx.GridSizer(1, 1, 0, 0)
+        gridsizer_txt_in = wx.GridSizer(1, 1, 0, 0)
+        gridsizer_txt_out = wx.GridSizer(1, 1, 0, 0)
         
-        self.SetSizer(outer_sizer)
-        self.Layout()
+        gridsizer_txt_in.Add(self.txt_in, 0, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND | wx.ALIGN_RIGHT, 0)
+        self.panel_txt_in.SetSizer(gridsizer_txt_in)
+        
+        self.splitter_top.SplitHorizontally(self.panel_buddy, self.panel_txt_in)
+        
+        gridsizer_top.Add(self.splitter_top, 1, wx.EXPAND, 0)
+        self.panel_top.SetSizer(gridsizer_top)
+        
+        gridsizer_txt_out.Add(self.txt_out, 0, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND, 0)
+        self.panel_txt_out.SetSizer(gridsizer_txt_out)
+        
+        self.splitter.SplitHorizontally(self.panel_top, self.panel_txt_out)
+        
+        gridsizer_main.Add(self.splitter, 1, wx.EXPAND, 0)
+        self.SetSizer(gridsizer_main)
+        
+        # restore previously saved sash position
+        lower = config.getint("gui", "chat_window_height_lower")
+        w,h = self.GetSize()
+        if lower > h - 50:
+            lower = h - 50
+        self.splitter.SetSashPosition(h - lower)
         self.splitter_top.SetSashPosition(self.panel_buddy.getSplitterHeight(), True)
+        
+        self.Layout()
+        #self.txt_out.SetFocus()
         
     def onShow(self, evt):
         # always make sure we are at the end when showing the window
@@ -1477,7 +1461,7 @@ class ChatWindow(wx.Frame):
             self.writeHintLine(line.rstrip().decode("UTF-8"))
             
         f.close()
-
+        
     def insertBackLog(self):
         path = config.get("logging", "chatlog_path")
         if path == "":
@@ -1499,7 +1483,7 @@ class ChatWindow(wx.Frame):
     
         buf = read_f(buf_size)
         while buf:
-            lines += buf.count('\n')
+            lines += buf.count(os.linesep)
             buf = read_f(buf_size)
         
         f.seek(0)
@@ -1547,10 +1531,9 @@ class ChatWindow(wx.Frame):
         # https://sourceforge.net/tracker/?func=detail&atid=109863&aid=665381&group_id=9863
         if config.isWindows():
             self.txt_in.ScrollLines(-1)
-            self.txt_in.ShowPosition(self.txt_in.GetLastPosition())
+            '''self.txt_in.ShowPosition(self.txt_in.GetLastPosition())'''
             self.txt_in.ScrollLines(1)
-            
-        self.txt_in.AppendText("")
+            self.txt_in.ScrollLines(1)
     
     def getNicknameColor(self, nickname):
         colors = config.get("gui", "nickname_colors").split(',')
@@ -1642,7 +1625,7 @@ class ChatWindow(wx.Frame):
     def notifyOfflineSent(self):
         #all should be unicode here
         message = "[%s]" % lang.NOTICE_DELAYED_MSG_SENT
-        self.writeColored(config.get("gui", "color_nick_myself"), "myself", message)
+        self.writeColored(config.get("gui", "color_nick_myself"), config.getProfileChatName(), message)
         self.notify("to %s" % self.buddy.address, message)
 
     def process(self, message):
@@ -1715,12 +1698,12 @@ class ChatWindow(wx.Frame):
         if self.buddy.status not in  [tc_client.STATUS_OFFLINE, tc_client.STATUS_HANDSHAKE]:
             self.buddy.sendChatMessage(text)
             self.writeColored(config.get("gui", "color_nick_myself"),
-                              "myself",
+                              config.getProfileChatName(),
                               text)
         else:
             self.buddy.storeOfflineChatMessage(text)
             self.writeColored(config.get("gui", "color_nick_myself"),
-                              "myself",
+                              config.getProfileChatName(),
                               "[%s] %s" % (lang.NOTICE_DELAYED, text))
 
     def onURL(self, evt):
@@ -1940,21 +1923,18 @@ class ChatWindow(wx.Frame):
         newpos = self.splitter_top.GetSashPosition()
         if not newpos == self.panel_buddy.getSplitterHeight():
             self.manualslash = True
+            self.panel_txt_in.Refresh()
     
     def onBuddyChanged(self):
         self.updateTitle()
         self.panel_buddy.updateInfo()
         if not self.manualslash:
             self.splitter_top.SetSashPosition(self.panel_buddy.getSplitterHeight(), True)
+            self.panel_txt_in.Refresh()
 
 
 class BetterFileDropTarget(wx.FileDropTarget):
-    def getFileName(self, filenames):
-        if len(filenames) == 0:
-            return None
-
-        file_name = filenames[0]
-
+    def getFileName(self, file_name):
         # --- begin evil hack
         if not os.path.exists(file_name):
             #sometimes the file name is in utf8
@@ -1984,36 +1964,32 @@ class DropTarget(BetterFileDropTarget):
         self.buddy = buddy
 
     def OnDropFiles(self, x, y, filenames):
-        if len(filenames) > 1:
-            wx.MessageBox(lang.D_WARN_FILE_ONLY_ONE_MESSAGE,
-                          lang.D_WARN_FILE_ONLY_ONE_TITLE)
-            return
+        if len(filenames) > 0:
+            for droppedfile in filenames:
+                file_name = self.getFileName(droppedfile)
 
-        file_name = self.getFileName(filenames)
-
-        if file_name is None:
-            return
-
-        """
-        if not self.window.buddy.isFullyConnected():
-            wx.MessageBox(lang.D_WARN_BUDDY_OFFLINE_MESSAGE,
-                          lang.D_WARN_BUDDY_OFFLINE_TITLE)
-            return
-        """
-
-        if self.buddy:
-            buddy = self.buddy
+                if file_name is None:
+                    break
+                
+                if os.path.isdir(file_name):
+                    wx.MessageBox(lang.D_WARN_FILE_IS_DIR_MESSAGE, lang.D_WARN_FILE_IS_DIR_TITLE)
+                    break
+        
+                if self.buddy:
+                    buddy = self.buddy
+                else:
+                    # this is the drop target for the buddy list
+                    # find the buddy
+                    buddy = self.mw.gui_bl.getBuddyFromXY((x,y))
+                    if buddy:
+                        print "(2) file dropped at buddy %s" % buddy.address
+                    else:
+                        print "(2) file dropped on empty space, ignoring"
+                        break
+        
+                FileTransferWindow(self.mw, buddy, file_name)
         else:
-            # this is the drop target for the buddy list
-            # find the buddy
-            buddy = self.mw.gui_bl.getBuddyFromXY((x,y))
-            if buddy:
-                print "(2) file dropped at buddy %s" % buddy.address
-            else:
-                print "(2) file dropped on empty space, ignoring"
-                return
-
-        FileTransferWindow(self.mw, buddy, file_name)
+            wx.MessageBox("No files found", "No files found")
 
 
 class AvatarDropTarget(BetterFileDropTarget):
@@ -2022,8 +1998,12 @@ class AvatarDropTarget(BetterFileDropTarget):
         self.window = window
 
     def OnDropFiles(self, x, y, filenames):
-        file_name = self.getFileName(filenames)
+        file_name = self.getFileName(filenames[0])
         if file_name is None:
+            return
+        
+        if os.path.isdir(file_name):
+            wx.MessageBox(lang.D_WARN_FILE_IS_DIR_MESSAGE, lang.D_WARN_FILE_IS_DIR_TITLE)
             return
 
         root, ext = os.path.splitext(file_name)
@@ -2427,34 +2407,7 @@ class MainWindow(wx.Frame):
             self.Show()
 
     def setMenu(self):
-        '''menubar = wx.MenuBar()
-        # CREATE MENUS
-        tcMenu = wx.Menu() # Torchat
-        clMenu = wx.Menu() # Contacts
-        hpMenu = wx.Menu() # Help
-        
-        # MENU ITEMS
-        tcItemPrefs = tcMenu.Append(wx.ID_PREFERENCES, '&Options\tCtrl+O', 'Preferences')
-        tcMenu.AppendSeparator()
-        tcItemQuit = tcMenu.Append(wx.ID_EXIT, '&Quit\tCtrl+Q', 'Quit application')
-        
-        #settings
-        
-        item = wx.MenuItem(self, wx.NewId(), lang.MPOP_SETTINGS)
-        self.AppendItem(item)
-        self.Bind(wx.EVT_MENU, self.onSettings, item)
-        
-        # EVENTS
-        self.Bind(wx.EVT_MENU, self.onPrefs, tcItemPrefs)
-        self.Bind(wx.EVT_MENU, self.onQuit, tcItemQuit)
-        
-        # ADD MENU ITEMS
-        menubar.Append(tcMenu, '&Torchat')
-        
-        self.SetMenuBar(menubar)'''
-        
         # TOOLBAR
-        
         toolbar = self.CreateToolBar()
         prefTool = toolbar.AddLabelTool(wx.ID_PREFERENCES, lang.TOOL_SETTINGS_LABEL, wx.Bitmap('icons/settings.png'), shortHelp=lang.TOOL_SETTINGS_HELP)
         addCTool = toolbar.AddLabelTool(wx.ID_ADD, lang.TOOL_ADD_CONTACT_LABEL, wx.Bitmap('icons/add.png'), shortHelp=lang.TOOL_ADD_CONTACT_HELP)

@@ -19,6 +19,7 @@ import dlg
 import config
 import tc_client
 import translations
+import tc_notification
 lang = translations.lang_en
 
 
@@ -93,8 +94,9 @@ class Dialog(wx.Dialog):
         
         dlg.Separator(self.p2, "Notifications")
         dlg.Check(self.p2, lang.DSET_GUI_NOTIFICATION_POPUP, ("gui", "notification_popup"))
-        dlg.Text(self.p2, lang.DSET_GUI_NOTIFICATION_METHOD, ("gui", "notification_method"))
         dlg.Check(self.p2, lang.DSET_GUI_FLASH_WINDOW, ("gui", "notification_flash_window"))
+        dlg.Dropdown(self.p2, lang.DSET_GUI_NOTIFICATION_METHOD, ("gui", "notification_method"), tc_notification.getSupportedNotificationMethods())
+        
         
         dlg.Separator(self.p2, "Chatwindow")
         dlg.Check(self.p2, lang.DSET_GUI_CONFIRM_CLOSE_CHATWINDOW, ("options", "confirm_close_chat"))
