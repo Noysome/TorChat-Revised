@@ -32,8 +32,8 @@ either be found in the "downloads" folder in the source, or on an external websi
 
 I will also release a download link to the latest version here:
 	
-1. [Source code: torchat-rev-source-0.9.9.550.rev13.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-source-0.9.9.550.rev14.zip)
-2. [Windows binaries: torchat-rev-windows-0.9.9.550.rev13.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-windows-0.9.9.550.rev14.zip)
+1. [Source code: torchat-rev-source-0.9.9.550.rev14.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-source-0.9.9.550.rev14.zip)
+2. [Windows binaries: torchat-rev-windows-0.9.9.550.rev14.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-windows-0.9.9.550.rev14.zip)
 
 
 Install
