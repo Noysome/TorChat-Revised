@@ -27,14 +27,14 @@ https://github.com/prof7bit/TorChat/
 Downloads
 ---------
 
-Github has deprecated the [downloads](https://github.com/torchatrev/TorChat-Revised/downloads) section. For future releases, the binaries will 
-either be found in the "downloads" folder in the source, or on an external website.
-
-I will also release a download link to the latest version here:
+You can download the latest version and the source code here:
 	
 1. [Source code: torchat-rev-source-0.9.9.550.rev14.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-source-0.9.9.550.rev14.zip)
 2. [Windows binaries: torchat-rev-windows-0.9.9.550.rev14.zip](https://github.com/torchatrev/TorChat-Revised/raw/torchat_py/downloads/torchat-rev-windows-0.9.9.550.rev14.zip)
 
+*Github has deprecated the [downloads](https://github.com/torchatrev/TorChat-Revised/downloads) section. 
+For now, the releases can be found in the ["downloads"](https://github.com/torchatrev/TorChat-Revised/tree/torchat_py/downloads) 
+folder in the source.*
 
 Install
 -------
