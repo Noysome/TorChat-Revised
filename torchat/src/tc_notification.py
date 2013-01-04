@@ -391,7 +391,7 @@ def notificationWindow(mw, name, text, buddy, color=""):
         return
     
     try:
-        function(mw, name, text, buddy)
+        function(mw, name, text, buddy, color)
     except:
         print "(1) exception while using notification method '%s'" % method
         print "(1) falling back to 'generic'. Traceback follows:"
