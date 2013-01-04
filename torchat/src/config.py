@@ -50,28 +50,32 @@ config_defaults = {
     ("options", "clear_cache_on_startup") : 0,
     ("gui", "language") : "en",
     ("gui", "notification_popup") : 1,
-    ("gui", "notification_method") : "simple",
+    ("gui", "notification_method") : "toaster",
     ("gui", "notification_flash_window") : 1,
     ("gui", "notification_excluded_users") : "",
+    ("gui", "notification_online") : 1,
+    ("gui", "notification_offline") : 1,
     ("gui", "open_main_window_hidden") : 0,
     ("gui", "open_chat_window_hidden") : 0,
     ("gui", "time_stamp_format") : "(%H:%M:%S)",
     ("gui", "color_time_stamp") : "#808080",
+    ("gui", "size_time_stamp") : 8,
     ("gui", "color_nick_myself") : "#0000c0",
     ("gui", "color_nick_buddy") : "#c00000",
     ("gui", "color_text_back") : "#ffffff",
     ("gui", "color_text_fore") : "#000000",
+    ("gui", "color_user_online") : "#d0e0cf",
+    ("gui", "color_user_offline") : "#e0cfcf",
     ("gui", "color_text_use_system_colors") : 1,
     ("gui", "chat_font_name") : "Arial",
     ("gui", "chat_font_size") : 10,
+    ("gui", "chat_style") : "singleline",
     ("gui", "chat_window_width") : 400,
     ("gui", "chat_window_height") : 400,
     ("gui", "chat_window_height_lower") : 50,
     ("gui", "main_window_width") : 260,
     ("gui", "main_window_height") : 350,
     ("gui", "nickname_colors") : "#660000,#00008C,#006400,#993300,#003366,#500050,#663300,#999900,#003300,#006699,#333399,#663333,#003333,#0066cc,#333333, #000000,#00008C,#006400,#820000,#500050,#FF5A00,#00FF00,#0096B4,#AAAAFF,#0F0FFF,#C800C8,#500050,#AAAAAA",
-    ("branding", "support_id") : "utvrla6mjdypbyw6",
-    ("branding", "support_name") : "Bernd, author of TorChat",
     ("profile", "name") : "",
     ("profile", "text") : "",
 }
@@ -96,7 +100,7 @@ def toUnicode(unknownstr):
     else:
         return unknownstr
 
-COPYRIGHT = u"Copyright (c) 2007-2011 Bernd Kreuß <prof7bit@googlemail.com>\n  Revised by TorchatRev <torchatrev@tormail.org>"
+COPYRIGHT = u"Copyright (c) 2007-2012 Bernd Kreuß <prof7bit@googlemail.com>\n  Revised by TorchatRev <torchatrev@tormail.org>"
 
 DEAD_CONNECTION_TIMEOUT = 240
 KEEPALIVE_INTERVAL = 120

@@ -96,9 +96,12 @@ class Dialog(wx.Dialog):
         dlg.Check(self.p2, lang.DSET_GUI_NOTIFICATION_POPUP, ("gui", "notification_popup"))
         dlg.Check(self.p2, lang.DSET_GUI_FLASH_WINDOW, ("gui", "notification_flash_window"))
         dlg.Dropdown(self.p2, lang.DSET_GUI_NOTIFICATION_METHOD, ("gui", "notification_method"), tc_notification.getSupportedNotificationMethods())
+        dlg.Check(self.p2, lang.DSET_GUI_NOTIFICATION_ONLINE, ("gui", "notification_online"))
+        dlg.Check(self.p2, lang.DSET_GUI_NOTIFICATION_OFFLINE, ("gui", "notification_offline"))
         
         
         dlg.Separator(self.p2, "Chatwindow")
+        dlg.Dropdown(self.p2, lang.DSET_GUI_CHAT_STYLE, ("gui", "chat_style"), ['singleline', 'multiline'])
         dlg.Check(self.p2, lang.DSET_GUI_CONFIRM_CLOSE_CHATWINDOW, ("options", "confirm_close_chat"))
         dlg.Check(self.p2, lang.DSET_GUI_GLOBAL_CHATLOGS, ("options", "enable_chatlogs_globaly"))
         dlg.Dir(self.p2, lang.DSET_GUI_CHATLOG_PATH, ("logging", "chatlog_path"))

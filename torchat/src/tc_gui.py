@@ -270,18 +270,12 @@ class PopupMenu(wx.Menu):
             item = wx.MenuItem(self, wx.NewId(), lang.MPOP_DELETE_CONTACT)
             self.AppendItem(item)
             self.Bind(wx.EVT_MENU, self.onDelete, item)
-
+            
             self.AppendSeparator()
 
         item = wx.MenuItem(self, wx.NewId(), lang.MPOP_ADD_CONTACT)
         self.AppendItem(item)
         self.Bind(wx.EVT_MENU, self.onAdd, item)
-
-        #ask support
-
-        item = wx.MenuItem(self, wx.NewId(), lang.MPOP_ASK_AUTHOR % config.get("branding", "support_name"))
-        self.AppendItem(item)
-        self.Bind(wx.EVT_MENU, self.onAskAuthor, item)
 
         item = wx.MenuItem(self, wx.NewId(), lang.MPOP_EDIT_MY_PROFILE)
         self.AppendItem(item)
@@ -290,31 +284,26 @@ class PopupMenu(wx.Menu):
         self.AppendSeparator()
         
         #change identity
-        
         item = wx.MenuItem(self, wx.NewId(), lang.DEC_NEW_IDENTITIY)
         self.AppendItem(item)
         self.Bind(wx.EVT_MENU, self.onNewIdentity, item)
 
         #settings
-
         item = wx.MenuItem(self, wx.NewId(), lang.MPOP_SETTINGS)
         self.AppendItem(item)
         self.Bind(wx.EVT_MENU, self.onSettings, item)
 
         #about
-
         item = wx.MenuItem(self, wx.NewId(), lang.MPOP_ABOUT)
         self.AppendItem(item)
         self.Bind(wx.EVT_MENU, self.onAbout, item)
-
-
+        
         #exit program
-
         self.AppendSeparator()
         item = wx.MenuItem(self, wx.NewId(), lang.MTB_QUIT)
         self.AppendItem(item)
         self.Bind(wx.EVT_MENU, self.onQuit, item)
-
+    
     def onSendFile(self, evt):
         title = lang.DFT_FILE_OPEN_TITLE % self.buddy.getAddressAndDisplayName()
         dialog = wx.FileDialog(self.mw, title, style=wx.OPEN)
@@ -419,19 +408,12 @@ class PopupMenu(wx.Menu):
                                          "translators":config.getTranslators()},
                       lang.ABOUT_TITLE)
 
-    def onAskAuthor(self, evt):
-        if self.mw.buddy_list.getBuddyFromAddress(config.get("branding", "support_id")):
-            wx.MessageBox(lang.DEC_MSG_ALREADY_ON_LIST % config.get("branding", "support_name"))
-        else:
-            dialog = DlgEditContact(self.mw, self.mw, add_author=True)
-            dialog.ShowModal()
-
     def onQuit(self, evt):
         self.mw.exitProgram()
 
 
 class DlgEditContact(wx.Dialog):
-    def __init__(self, parent, main_window, buddy=None, add_author=False): #no buddy -> Add new
+    def __init__(self, parent, main_window, buddy=None): #no buddy -> Add new
         wx.Dialog.__init__(self, parent, -1)
         self.mw = main_window
         self.bl = self.mw.buddy_list
@@ -479,10 +461,6 @@ class DlgEditContact(wx.Dialog):
             self.txt_intro = wx.TextCtrl(self.panel, -1, "hello, my friend...")
             self.txt_intro.SetMinSize((250, -1))
             sizer.Add(self.txt_intro, (row, 1), (1, 2))
-
-        if add_author:
-            self.txt_address.SetValue(config.get("branding", "support_id"))
-            self.txt_name.SetValue(config.get("branding", "support_name"))
 
         #buttons
         row += 1
@@ -924,15 +902,11 @@ class BuddyList(wx.ListCtrl):
     def getSelectedBuddy(self):
         index = self.GetFirstSelected()
         return self.getBuddyFromIndex(index)
-        '''addr = self.GetItemText(index)[0:16]
-        return self.bl.getBuddyFromAddress(addr)'''
 
     def getBuddyFromXY(self, position):
         index, flags = self.HitTest(position)
         if index != -1:
             return self.getBuddyFromIndex(index)
-            '''addr = self.GetItemText(index)[0:16]
-            return self.bl.getBuddyFromAddress(addr)'''
         else:
             return None
 
@@ -951,6 +925,13 @@ class BuddyList(wx.ListCtrl):
         # if a tooltip for this buddy is currently shown then refresh it
         if self.tool_tip <> None and index == self.tool_tip_index:
             self.openToolTip(index)
+        
+        # if this user has just come online, show notification
+        if config.getint('gui', 'notification_online') and buddy.last_status < 2 and buddy.status > 1:
+            tc_notification.notificationWindow(self.mw, buddy.getDisplayNameOrAddress(), lang.MSG_BUDDY_ONLINE, buddy, config.get('gui', 'color_user_online'))
+        else:
+            if config.getint('gui', 'notification_offline') and buddy.last_status > 1 and buddy.status < 2:
+                tc_notification.notificationWindow(self.mw, buddy.getDisplayNameOrAddress(), lang.MSG_BUDDY_OFFLINE, buddy, config.get('gui', 'color_user_offline'))
 
     def onBuddyProfileChanged(self, buddy):
         assert isinstance(buddy, tc_client.Buddy)
@@ -986,8 +967,6 @@ class BuddyList(wx.ListCtrl):
                 break
 
         # if a tooltip for this buddy is currently shown then refresh it
-        '''line = buddy.getDisplayName()
-        index = self.FindItem(0, line)'''
         index = self.getIndexFromBuddy(buddy)
         if self.tool_tip <> None and index == self.tool_tip_index:
             self.openToolTip(index)
@@ -1046,10 +1025,6 @@ class BuddyList(wx.ListCtrl):
         buddy = self.bl.list[key]
         #wx.MessageBox(buddy.name, 'Info', wx.OK | wx.ICON_INFORMATION)
         return buddy
-        '''name = self.GetItemText(index)
-        for buddy in self.bl.list:
-            if buddy.getDisplayName() == name:
-                return buddy'''
 
 class BuddyToolTip(wx.PopupWindow):
     def __init__(self, list, index):
@@ -1324,27 +1299,46 @@ class ChatWindow(wx.Frame):
         self.unread = 0
         self.dialogOpen = False
         self.manualslash = False
+        self.lastlineby = ""
         self.updateTitle()
         
         # global chatlogs
         if config.getint("options", "enable_chatlogs_globaly"):
             self.log("")
         
-        # Layout elements
+        # Create the splitters
         self.splitter = wx.SplitterWindow(self, -1, style=wx.SP_NOBORDER|wx.SP_LIVE_UPDATE)
         self.splitter_top = wx.SplitterWindow(self.splitter, -1, style=wx.SP_NOBORDER|wx.SP_LIVE_UPDATE)
         
-        self.panel_top = wx.Panel(self.splitter, -1)
+        # style the sash
+        self.splitter.SetMinimumPaneSize(50)
+        self.splitter.SetSashGravity(1)
+        self.splitter.SetSashSize(3)
+        
+        self.splitter_top.SetMinimumPaneSize(1)
+        self.splitter_top.SetSashGravity(0)
+        self.splitter_top.SetSashSize(3)
+        
+        # Create the panels
         self.panel_buddy = BuddyInfoBar(self.splitter_top, self.buddy)
         self.panel_txt_in = wx.Panel(self.splitter_top, -1)
         self.panel_txt_out = wx.Panel(self.splitter, -1)
         
+        # Create the text controls
         self.txt_in = wx.TextCtrl(self.panel_txt_in, -1, 
                                 style=wx.TE_READONLY | wx.TE_MULTILINE | wx.TE_AUTO_URL | wx.TE_AUTO_SCROLL | wx.TE_RICH2 | wx.BORDER_SUNKEN)
         self.txt_out = wx.TextCtrl(self.panel_txt_out, -1, 
                                 style=wx.TE_MULTILINE | wx.TE_RICH2 | wx.BORDER_SUNKEN)
         
         self.doLayout()
+        
+        # restore previously saved sash position
+        lower = config.getint("gui", "chat_window_height_lower")
+        w,h = self.GetSize()
+        if lower > h - 50:
+            lower = h - 50
+        self.splitter.SetSashPosition(h - lower)
+        self.splitter_top.SetSashPosition(self.panel_buddy.getSplitterHeight(), True)
 
         self.setFontAndColor()
         self.insertBackLog()
@@ -1395,45 +1389,24 @@ class ChatWindow(wx.Frame):
         evt.Skip()
 
     def doLayout(self):
-        self.splitter.SetMinimumPaneSize(50)
-        self.splitter.SetSashGravity(1)
-        self.splitter.SetSashSize(3)
+        sizer_main = wx.BoxSizer(wx.VERTICAL)
+        sizer_txt_in = wx.BoxSizer(wx.VERTICAL)
+        sizer_txt_out = wx.BoxSizer(wx.HORIZONTAL)
         
-        self.splitter_top.SetMinimumPaneSize(1)
-        self.splitter_top.SetSashGravity(0)
-        self.splitter_top.SetSashSize(3)
-        
-        gridsizer_main = wx.GridSizer(1, 1, 0, 0)
-        gridsizer_top = wx.GridSizer(1, 1, 0, 0)
-        gridsizer_txt_in = wx.GridSizer(1, 1, 0, 0)
-        gridsizer_txt_out = wx.GridSizer(1, 1, 0, 0)
-        
-        gridsizer_txt_in.Add(self.txt_in, 0, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND | wx.ALIGN_RIGHT, 0)
-        self.panel_txt_in.SetSizer(gridsizer_txt_in)
+        sizer_txt_in.Add(self.txt_in, 1, wx.EXPAND, 0)
+        self.panel_txt_in.SetSizer(sizer_txt_in)
         
         self.splitter_top.SplitHorizontally(self.panel_buddy, self.panel_txt_in)
         
-        gridsizer_top.Add(self.splitter_top, 1, wx.EXPAND, 0)
-        self.panel_top.SetSizer(gridsizer_top)
+        sizer_txt_out.Add(self.txt_out, 1, wx.EXPAND, 0)
+        self.panel_txt_out.SetSizer(sizer_txt_out)
         
-        gridsizer_txt_out.Add(self.txt_out, 0, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND, 0)
-        self.panel_txt_out.SetSizer(gridsizer_txt_out)
+        self.splitter.SplitHorizontally(self.splitter_top, self.panel_txt_out)
+
+        sizer_main.Add(self.splitter, 1, wx.EXPAND, 0)
         
-        self.splitter.SplitHorizontally(self.panel_top, self.panel_txt_out)
-        
-        gridsizer_main.Add(self.splitter, 1, wx.EXPAND, 0)
-        self.SetSizer(gridsizer_main)
-        
-        # restore previously saved sash position
-        lower = config.getint("gui", "chat_window_height_lower")
-        w,h = self.GetSize()
-        if lower > h - 50:
-            lower = h - 50
-        self.splitter.SetSashPosition(h - lower)
-        self.splitter_top.SetSashPosition(self.panel_buddy.getSplitterHeight(), True)
-        
+        self.SetSizer(sizer_main)
         self.Layout()
-        #self.txt_out.SetFocus()
         
     def onShow(self, evt):
         # always make sure we are at the end when showing the window
@@ -1491,14 +1464,7 @@ class ChatWindow(wx.Frame):
         return lines
     
     def setFontAndColor(self):
-        font = wx.Font(
-            config.getint("gui", "chat_font_size"),
-            wx.SWISS,
-            wx.NORMAL,
-            wx.NORMAL,
-            False,
-            config.get("gui", "chat_font_name")
-        )
+        font = self.getDefaultFontStyle()
         self.txt_out.SetFont(font)
         self.txt_in.SetFont(font)
         if config.getint("gui", "color_text_use_system_colors") == 0:
@@ -1506,6 +1472,46 @@ class ChatWindow(wx.Frame):
             self.txt_in.SetBackgroundColour(config.get("gui", "color_text_back"))
             self.txt_out.SetForegroundColour(config.get("gui", "color_text_fore"))
             self.txt_out.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_text_fore")))
+    
+    def getDefaultFontStyle(self):
+        return wx.Font(
+            config.getint("gui", "chat_font_size"),
+            wx.SWISS,
+            wx.NORMAL,
+            wx.NORMAL,
+            False,
+            config.get("gui", "chat_font_name")
+        )
+    
+    def getTimeFontStyle(self):
+        return wx.Font(
+            config.getint("gui", "size_time_stamp"),
+            wx.SWISS,
+            wx.NORMAL,
+            wx.NORMAL,
+            False,
+            config.get("gui", "chat_font_name")
+        )
+    
+    def getUserFontStyle(self):
+        return wx.Font(
+            config.getint("gui", "chat_font_size"),
+            wx.SWISS,
+            wx.NORMAL,
+            wx.BOLD,
+            False,
+            config.get("gui", "chat_font_name")
+        )
+    
+    def getSpacingFontStyle(self):
+        return wx.Font(
+            3,
+            wx.SWISS,
+            wx.NORMAL,
+            wx.NORMAL,
+            False,
+            config.get("gui", "chat_font_name")
+        )
 
     def updateTitle(self):
         if self.unread == 1:
@@ -1556,14 +1562,32 @@ class ChatWindow(wx.Frame):
             color = self.getNicknameColor(name)
             text  = text.replace(nick, "")
         
-        self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_time_stamp")))
-        self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
-        self.txt_in.SetDefaultStyle(wx.TextAttr(color))
-        self.txt_in.write("%s: " % name)
+        timestyle = wx.TextAttr(config.get("gui", "color_time_stamp"), wx.NullColor, self.getTimeFontStyle())
+        userstyle = wx.TextAttr(color)
+        unewstyle = wx.TextAttr(color, wx.NullColor, self.getUserFontStyle())
+        spcrstyle = wx.TextAttr(config.get("gui", "color_time_stamp"), wx.NullColor, self.getSpacingFontStyle())
         if config.getint("gui", "color_text_use_system_colors") == 0:
-            self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_text_fore")))
+            dfltstyle = wx.TextAttr(config.get("gui", "color_text_fore"), wx.NullColor, self.getDefaultFontStyle())
         else:
-            self.txt_in.SetDefaultStyle(wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)))
+            dfltstyle = wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT), wx.NullColor, self.getDefaultFontStyle())
+        
+        if config.get('gui', 'chat_style') == "singleline":
+            self.txt_in.SetDefaultStyle(timestyle)
+            self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
+            self.txt_in.SetDefaultStyle(dfltstyle)
+            self.txt_in.SetDefaultStyle(userstyle)
+            self.txt_in.write("%s: " % name)
+        else:
+            if not self.lastlineby == color+name:
+                self.txt_in.SetDefaultStyle(spcrstyle)
+                self.txt_in.write(os.linesep)
+                self.txt_in.SetDefaultStyle(unewstyle)
+                self.txt_in.write("%s:" % name + os.linesep)
+            self.txt_in.SetDefaultStyle(timestyle)
+            self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
+            self.lastlineby = color+name
+        
+        self.txt_in.SetDefaultStyle(dfltstyle)
         self.txt_in.write(text + os.linesep)
         
         self.workaroundScrollBug()
@@ -1746,6 +1770,8 @@ class ChatWindow(wx.Frame):
         empty = (sel_from == sel_to)
         if empty:
             item.Enable(False)
+        
+        menu.AppendSeparator()
 
         id = wx.NewId()
         item = wx.MenuItem(menu, id, lang.MPOP_SEND_FILE)
@@ -1757,6 +1783,13 @@ class ChatWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.onEditBuddy, id=id)
         menu.AppendItem(item)
 
+        menu.AppendSeparator()
+        
+        id = wx.NewId()
+        item = wx.MenuItem(menu, id, lang.MPOP_COPY_ID_TO_CLIPBOARD)
+        self.Bind(wx.EVT_MENU, self.onCopyIdToClipboard, id=id)
+        menu.AppendItem(item)
+        
         menu.AppendSeparator()
 
         if not self.isLoggingActivated():
@@ -1781,11 +1814,11 @@ class ChatWindow(wx.Frame):
         menu.AppendSeparator()
         
         if not self.isNotifyDisabled():
-            item = wx.MenuItem(menu, wx.NewId(), "Disable pop-up notifications")
+            item = wx.MenuItem(menu, wx.NewId(), lang.MPOP_DISABLE_USER_NOTIFICATIONS)
             menu.AppendItem(item)
             menu.Bind(wx.EVT_MENU, self.onDisableNotifications, item)
         else:
-            item = wx.MenuItem(menu, wx.NewId(), "Enable pop-up notifications")
+            item = wx.MenuItem(menu, wx.NewId(), lang.MPOP_ENABLE_USER_NOTIFICATIONS)
             menu.AppendItem(item)
             menu.Bind(wx.EVT_MENU, self.onEnableNotifications, item)
 
@@ -1817,6 +1850,13 @@ class ChatWindow(wx.Frame):
         self.dialogOpen = True
         dialog.ShowModal()
         self.onBuddyChanged()
+        
+    def onCopyIdToClipboard(self, evt):
+        if not wx.TheClipboard.IsOpened():
+            address = wx.TextDataObject(self.buddy.address)
+            wx.TheClipboard.Open()
+            wx.TheClipboard.SetData(address)
+            wx.TheClipboard.Close()
 
     def onBuddyStatusChanged(self):
         bmp = getStatusBitmap(self.buddy.status)
@@ -1923,14 +1963,12 @@ class ChatWindow(wx.Frame):
         newpos = self.splitter_top.GetSashPosition()
         if not newpos == self.panel_buddy.getSplitterHeight():
             self.manualslash = True
-            self.panel_txt_in.Refresh()
     
     def onBuddyChanged(self):
         self.updateTitle()
         self.panel_buddy.updateInfo()
         if not self.manualslash:
             self.splitter_top.SetSashPosition(self.panel_buddy.getSplitterHeight(), True)
-            self.panel_txt_in.Refresh()
 
 
 class BetterFileDropTarget(wx.FileDropTarget):

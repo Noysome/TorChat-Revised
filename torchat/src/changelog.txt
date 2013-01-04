@@ -1,3 +1,14 @@
+version 0.9.9.550.rev15
+- Bugfixes:
+	- Chatwindow not completely rendered
+- (GUI) Notifications when user signs in/out
+- (GUI) Context menu in chatwindow now has an option to copy the buddy's TC ID to the clipboard
+- (GUI) Chatwindow: single line chat (default) or multiline chat (groups messages by contact)
+- (Settings) new notification popup available: Toaster (default)
+- (Settings) enable online/offline notifications
+- (Settings) switch between single/multiline chat
+- Removed branding, asking Bernd for support for this branch is not recommended
+
 version 0.9.9.550.rev14
 - Bugfixes:
 	- Fixed: Chatwindow appears to be blank when first opening (only for some contacts)

@@ -193,6 +193,7 @@ class Buddy(object):
         self.conn_out = None
         self.conn_in = None
         self.status = STATUS_OFFLINE
+        self.last_status = STATUS_OFFLINE
         self.client = ""
         self.version = ""
         self.timer = False
@@ -274,6 +275,7 @@ class Buddy(object):
         print "(2) %s.onStatus(%s)" % (self.address, status)
         self.last_status_time = time.time()
         if status <> self.status:
+            self.last_status = self.status
             self.status = status
             self.bl.gui(CB_TYPE_STATUS, self)
 
