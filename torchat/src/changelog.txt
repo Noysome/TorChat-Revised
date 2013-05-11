@@ -1,3 +1,20 @@
+version 0.9.9.550.rev17
+- Dropping of folders
+	- Requires a packing application via a command line interface, default command included for use with WinRAR
+	- You can choose where the archive files get stored
+	- You can make TorChat wipe the archive after the transfer is complete
+- Tweaked ETA calculation during file transfers
+- Decreased file transfer timeout, disabled buddy-disconnect on timeout (Experimental, to enable again, set "reconnect_on_timeout" to 1 in torchat.ini)
+- Added own nickname/ID on top of the toaster notification window, as requested by people running multiple instances
+- Added "Block contact" feature
+- Bugfixes:
+	- Buddies were not notified if you exited Torchat, as the TOR instance got killed before the protocol messages could be sent
+
+version 0.9.9.550.rev16
+- Removed TorCtl from the project (new identity feature), as the project was deprecated
+- Bugfixes:
+	- Closing filetransfer window by pressing the X button in the corner just closed the window, and did not abort the transfer
+
 version 0.9.9.550.rev15
 - Bugfixes:
 	- Chatwindow not completely rendered

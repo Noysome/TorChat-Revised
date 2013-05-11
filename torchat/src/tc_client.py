@@ -30,7 +30,6 @@ import tempfile
 import hashlib
 import config
 import version
-from TorCtl import TorCtl
 
 TORCHAT_PORT = 11009 #do NOT change this.
 TOR_CONFIG = "tor" #the name of the active section in the .ini file
@@ -39,6 +38,7 @@ STATUS_HANDSHAKE = 1
 STATUS_ONLINE = 2
 STATUS_AWAY = 3
 STATUS_XA = 4
+STATUS_BLOCKED = 5
 
 CB_TYPE_CHAT = 1
 CB_TYPE_FILE = 2
@@ -125,6 +125,30 @@ def createTemporaryFile(file_name):
     print "(2) created temporary file  %s" % file_name_tmp
     return (file_name_tmp, file_handle_tmp)
 
+def createTemporaryZipFile(file_name):
+    if config.getint("files", "temp_files_in_data_dir"):
+        file_dir = config.getDataDir()
+    else:
+        file_dir = config.get("files", "dragdropzipdir_dir")
+    try:
+        if file_dir == "":
+            file_dir = tempfile.gettempdir()
+        
+        prefix = "torchat_zip_"
+        counter = 1
+        while True:
+            new_file_name = os.path.join(file_dir, prefix + str(counter) + "_" + file_name)
+            counter += 1
+            if not os.path.exists(new_file_name):
+                break
+        
+        print "(2) created temporary filename  %s" % new_file_name
+        return new_file_name
+    except:
+        print "(1) could not create temporary filename in %s" % dir
+    
+    return ""
+
 
 class WipeFileThread(threading.Thread):
     """This wipes a file in a separate thread because
@@ -207,10 +231,13 @@ class Buddy(object):
 
     def connect(self):
         print "(2) %s.connect()" % self.address
-        if self.conn_out == None:
-            self.conn_out = OutConnection(self.address + ".onion", self.bl, self)
-            self.count_unanswered_pings = 0
-            self.sendPing()
+        if self.address not in self.bl.blocked_list.list:
+            if self.conn_out == None:
+                self.conn_out = OutConnection(self.address + ".onion", self.bl, self)
+                self.count_unanswered_pings = 0
+                self.sendPing()
+        else:
+            self.setBlocked()
 
     def isFullyConnected(self):
         return self.conn_in and self.conn_out and self.conn_out.pong_sent
@@ -226,6 +253,27 @@ class Buddy(object):
         if self.conn_in != None:
             self.conn_in.close()
             self.conn_in = None
+        self.onStatus(STATUS_OFFLINE)
+    
+    def block(self):
+        print "(2) %s.block()" % self.address
+        if self.address not in self.bl.blocked_list.list:
+            self.bl.blocked_list.add(self.address)
+            self.bl.blocked_list.save()
+            self.setBlocked()
+    
+    def unblock(self):
+        print "(2) %s.unblock()" % self.address
+        if self.address in self.bl.blocked_list.list:
+            self.bl.blocked_list.delete(self.address)
+            self.bl.blocked_list.save()
+            self.setUnBlocked()
+    
+    def setBlocked(self):
+        self.disconnect()
+    
+    def setUnBlocked(self):
+        self.startTimer()
         self.onStatus(STATUS_OFFLINE)
 
     def onOutConnectionFail(self):
@@ -272,6 +320,8 @@ class Buddy(object):
         self.temporary = temporary
 
     def onStatus(self, status):
+        if self.address in self.bl.blocked_list.list:
+            status = STATUS_BLOCKED
         print "(2) %s.onStatus(%s)" % (self.address, status)
         self.last_status_time = time.time()
         if status <> self.status:
@@ -370,39 +420,44 @@ class Buddy(object):
         return sender
 
     def startTimer(self):
-        if not self.active:
-            print "(2) %s is not active. Will not start a new timer" % self.address
-            return
-
-        if self.status == STATUS_OFFLINE:
-            if self.count_failed_connects < 10:
-                t = random.randrange(50, 150) / 10.0
-            else:
-                if self.count_failed_connects < 20:
-                    t = random.randrange(300, 400)
+        print "(2) %s.startTimer" % self.address
+        if self.address not in self.bl.blocked_list.list:
+            if not self.active:
+                print "(2) %s is not active. Will not start a new timer" % self.address
+                return
+    
+            if self.status == STATUS_OFFLINE:
+                if self.count_failed_connects < 10:
+                    t = random.randrange(50, 150) / 10.0
                 else:
-                    # more than an hour. The other one will ping us if it comes
-                    # online which will immediately connect and reset the counting
-                    t = random.randrange(5000, 6000)
-            print "(2) %s had %i failed connections. Setting timer to %f seconds" \
-                % (self.address, self.count_failed_connects, t)
-        else:
-            #whenever we are connected to someone we use a fixed timer.
-            #otherwise we would create a unique pattern of activity
-            #over time that could be identified at the other side
-            if self.status == STATUS_HANDSHAKE:
-                # ping more agressively during handshake
-                # to trigger more connect back attempts there
-                t = config.KEEPALIVE_INTERVAL / 4
+                    if self.count_failed_connects < 20:
+                        t = random.randrange(300, 400)
+                    else:
+                        # more than an hour. The other one will ping us if it comes
+                        # online which will immediately connect and reset the counting
+                        t = random.randrange(5000, 6000)
+                print "(2) %s had %i failed connections. Setting timer to %f seconds" \
+                    % (self.address, self.count_failed_connects, t)
             else:
-                # when fully connected we can slow down to normal 
-                t = config.KEEPALIVE_INTERVAL
-                
-
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(t, self.onTimer)
-        self.timer.start()
+                #whenever we are connected to someone we use a fixed timer.
+                #otherwise we would create a unique pattern of activity
+                #over time that could be identified at the other side
+                if self.status == STATUS_HANDSHAKE:
+                    # ping more agressively during handshake
+                    # to trigger more connect back attempts there
+                    t = config.KEEPALIVE_INTERVAL / 4
+                else:
+                    # when fully connected we can slow down to normal 
+                    t = config.KEEPALIVE_INTERVAL
+                    
+    
+            if self.timer:
+                self.timer.cancel()
+            self.timer = threading.Timer(t, self.onTimer)
+            self.timer.start()
+        else:
+            print "(2) %s is blocked" % self.address
+            self.status = STATUS_BLOCKED
 
     def onTimer(self):
         print "(2) %s.onTimer()" % self.address
@@ -535,8 +590,47 @@ class Buddy(object):
             return 2
         if self.status == STATUS_HANDSHAKE:
             return 3
+        if self.status == STATUS_BLOCKED:
+            return 5
         return 4
 
+class BlockedList(object):
+    def __init__(self):
+        print "(1) initializing blocked list"
+        self.filename = os.path.join(config.getDataDir(), "blocked-list.txt")
+        
+        #create empty buddy list file if it does not already exist
+        f = open(self.filename, "a")
+        f.close()
+
+        f = open(self.filename, "r")
+        l = f.read().replace("\r", "\n").replace("\n\n", "\n").split("\n")
+        f.close
+        self.list = []
+        for line in l:
+            line = line.rstrip().decode("UTF-8")
+            if len(line) > 15:
+                address = line[0:16]
+                self.list.append(address)
+        
+        print "(1) Blocked list initialized"
+        
+    def save(self):
+        f = open(self.filename, "w")
+        for address in self.list:
+            line = ("%s\r\n" % address)
+            f.write(line)
+        f.close()
+        print "(2) blocked list saved"
+    
+    def add(self, address):
+        self.list.append(address)
+        self.save()
+    
+    def delete(self, address):
+        self.list.remove(address)
+        self.save()
+        
 
 class BuddyList(object):
     """the BuddyList object is the central API of the client.
@@ -554,7 +648,8 @@ class BuddyList(object):
         print "(1) initializing buddy list"
         self.gui = callback
         self.torctrlcon = None
-
+        self.blocked_list = BlockedList()
+        
         startPortableTor()
 
         self.file_sender = {}
@@ -615,24 +710,6 @@ class BuddyList(object):
 
         print "(1) BuddList initialized"
     
-    def changeTorIdentity(self):
-        global TOR_CONFIG
-        
-        controlAddr = config.get(TOR_CONFIG, "tor_server");
-        controlPort = int(config.get(TOR_CONFIG, "tor_server_control_port"));
-        controlPass = config.get(TOR_CONFIG, "tor_server_control_pass");
-        
-        if self.torctrlcon == None:
-            print "Trying to connect to %s:%s using pass %s" % (controlAddr, controlPort, controlPass)
-            self.torctrlcon = TorCtl.connect(controlAddr=controlAddr, controlPort=controlPort, passphrase=controlPass)
-            
-        if not self.torctrlcon == None:
-            print "Request new identity"
-            TorCtl.Connection.send_signal(self.torctrlcon, "NEWNYM")
-            return True
-        else:
-            return False
-
     def save(self):
         f = open(os.path.join(config.getDataDir(), "buddy-list.txt"), "w")
         for buddy in self.list:
@@ -664,6 +741,8 @@ class BuddyList(object):
         print "(2) removeBuddy(%s, %s)" % (buddy_to_remove.address, disconnect)
         self.gui(CB_TYPE_REMOVE, buddy_to_remove)
         buddy_to_remove.setActive(False)
+        
+        self.blocked_list.add(buddy_to_remove.address)
 
         if not disconnect:
             # send remove_me and leave the connections open
@@ -731,7 +810,8 @@ class BuddyList(object):
     def setStatus(self, status):
         self.own_status = status
         for buddy in self.list:
-            buddy.sendStatus()
+            if buddy.address not in self.blocked_list.list:
+                buddy.sendStatus()
 
     def onErrorIn(self, connection):
         for buddy in self.incoming_buddies:
@@ -770,10 +850,10 @@ class BuddyList(object):
         connection.buddy.onOutConnectionSuccess()
 
     def stopClient(self):
-        stopPortableTor()
         for buddy in self.list + self.incoming_buddies:
             buddy.disconnect()
         self.listener.close() #FIXME: does this really work?
+        stopPortableTor()
 
 
 class FileSender(threading.Thread):
@@ -811,13 +891,14 @@ class FileSender(threading.Thread):
         else:
             self.timeout_count = 0
 
-        if self.timeout_count == 6000:
+        if self.timeout_count == 2000:
             #ten minutes without filedata_ok
             new_start = self.start_ok + self.block_size
             self.restart(new_start)
             #enforce a new connection
             try:
-                self.buddy.disconnect()
+                if config.getint("files", "reconnect_on_timeout"):
+                    self.buddy.disconnect()
             except:
                 pass
             print "(2) timeout file sender restart at %i" % new_start
@@ -1291,6 +1372,12 @@ class ProtocolMsg_ping(ProtocolMsg):
         if not self.isValidAddress():
             print "(1) ping sender '%s' not a valid onion ID. closing connection." % self.address
             self.connection.close()
+            return
+        
+        #is sender blocked?
+        if self.address in self.bl.blocked_list.list:
+            print "(1) ping sender '%s' is blocked. Simply ignoring this call." % self.address
+            """self.connection.close()"""
             return
 
         #first a little security check to detect mass pings

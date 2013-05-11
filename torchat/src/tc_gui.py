@@ -42,7 +42,8 @@ ICON_NAMES = {tc_client.STATUS_OFFLINE : "offline.png",
               tc_client.STATUS_ONLINE : "online.png",
               tc_client.STATUS_HANDSHAKE : "connecting.png",
               tc_client.STATUS_AWAY : "away.png",
-              tc_client.STATUS_XA : "xa.png"}
+              tc_client.STATUS_XA : "xa.png",
+              tc_client.STATUS_BLOCKED : "blocked.png"}
 
 _icon_images = {} #this is a cache for getStatusBitmap()
 
@@ -266,6 +267,15 @@ class PopupMenu(wx.Menu):
             item = wx.MenuItem(self, wx.NewId(), lang.MPOP_EDIT_CONTACT)
             self.AppendItem(item)
             self.Bind(wx.EVT_MENU, self.onEdit, item)
+            
+            if self.buddy.address not in self.mw.buddy_list.blocked_list.list:
+                item = wx.MenuItem(self, wx.NewId(), lang.MPOP_BLOCK_CONTACT)
+                self.AppendItem(item)
+                self.Bind(wx.EVT_MENU, self.onBlock, item)
+            else:
+                item = wx.MenuItem(self, wx.NewId(), lang.MPOP_UNBLOCK_CONTACT)
+                self.AppendItem(item)
+                self.Bind(wx.EVT_MENU, self.onUnBlock, item)
 
             item = wx.MenuItem(self, wx.NewId(), lang.MPOP_DELETE_CONTACT)
             self.AppendItem(item)
@@ -282,11 +292,6 @@ class PopupMenu(wx.Menu):
         self.Bind(wx.EVT_MENU, self.onProfile, item)
 
         self.AppendSeparator()
-        
-        #change identity
-        item = wx.MenuItem(self, wx.NewId(), lang.DEC_NEW_IDENTITIY)
-        self.AppendItem(item)
-        self.Bind(wx.EVT_MENU, self.onNewIdentity, item)
 
         #settings
         item = wx.MenuItem(self, wx.NewId(), lang.MPOP_SETTINGS)
@@ -315,6 +320,12 @@ class PopupMenu(wx.Menu):
     def onEdit(self, evt):
         dialog = DlgEditContact(self.mw, self.mw, self.buddy)
         dialog.ShowModal()
+    
+    def onBlock(self, evt):
+        self.buddy.block()
+    
+    def onUnBlock(self, evt):
+        self.buddy.unblock()
 
     def onDelete(self, evt):
         answer = wx.MessageBox(lang.D_CONFIRM_DELETE_MESSAGE % (self.buddy.address, self.buddy.name),
@@ -395,10 +406,6 @@ class PopupMenu(wx.Menu):
         dialog = dlg_settings.Dialog(self.mw)
         dialog.ShowModal()
     
-    def onNewIdentity(self, evt):
-        if not self.mw.buddy_list.changeTorIdentity():
-            wx.MessageBox(lang.D_WARN_CONTROL_CONNECTION_FAILED_MESSAGE, lang.D_WARN_CONTROL_CONNECTION_FAILED_TITLE)
-
     def onAbout(self, evt):
         wx.MessageBox(lang.ABOUT_TEXT % {"version":version.VERSION,
                                          "svn":version.VERSION_SVN,
@@ -729,7 +736,8 @@ class BuddyList(wx.ListCtrl):
                        tc_client.STATUS_HANDSHAKE,
                        tc_client.STATUS_ONLINE,
                        tc_client.STATUS_AWAY,
-                       tc_client.STATUS_XA]:
+                       tc_client.STATUS_XA,
+                       tc_client.STATUS_BLOCKED]:
             self.il_idx[status] = self.il.Add(getStatusBitmap(status))
 
         img_event = wx.Image(os.path.join(config.ICON_DIR, "event.png"))
@@ -927,10 +935,10 @@ class BuddyList(wx.ListCtrl):
             self.openToolTip(index)
         
         # if this user has just come online, show notification
-        if config.getint('gui', 'notification_online') and buddy.last_status < 2 and buddy.status > 1:
+        if config.getint('gui', 'notification_online') and buddy.status != tc_client.STATUS_BLOCKED and buddy.last_status != tc_client.STATUS_BLOCKED and buddy.last_status < 2 and buddy.status > 1:
             tc_notification.notificationWindow(self.mw, buddy.getDisplayNameOrAddress(), lang.MSG_BUDDY_ONLINE, buddy, config.get('gui', 'color_user_online'))
         else:
-            if config.getint('gui', 'notification_offline') and buddy.last_status > 1 and buddy.status < 2:
+            if config.getint('gui', 'notification_offline') and buddy.status != tc_client.STATUS_BLOCKED and buddy.last_status != tc_client.STATUS_BLOCKED and buddy.last_status > 1 and buddy.status < 2:
                 tc_notification.notificationWindow(self.mw, buddy.getDisplayNameOrAddress(), lang.MSG_BUDDY_OFFLINE, buddy, config.get('gui', 'color_user_offline'))
 
     def onBuddyProfileChanged(self, buddy):
@@ -1548,6 +1556,14 @@ class ChatWindow(wx.Frame):
             charsum = charsum + ord(c)
         index = charsum%len(colors)
         return colors[index]
+    
+    def resetDefaultStyle(self):
+        if config.getint("gui", "color_text_use_system_colors") == 0:
+            dfltstyle = wx.TextAttr(config.get("gui", "color_text_fore"), wx.NullColor, self.getDefaultFontStyle())
+        else:
+            dfltstyle = wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT), wx.NullColor, self.getDefaultFontStyle())
+        self.txt_in.SetDefaultStyle(dfltstyle)
+        
 
     def writeColored(self, color, name, text):
         # this method will write to the chat window and
@@ -1566,15 +1582,11 @@ class ChatWindow(wx.Frame):
         userstyle = wx.TextAttr(color)
         unewstyle = wx.TextAttr(color, wx.NullColor, self.getUserFontStyle())
         spcrstyle = wx.TextAttr(config.get("gui", "color_time_stamp"), wx.NullColor, self.getSpacingFontStyle())
-        if config.getint("gui", "color_text_use_system_colors") == 0:
-            dfltstyle = wx.TextAttr(config.get("gui", "color_text_fore"), wx.NullColor, self.getDefaultFontStyle())
-        else:
-            dfltstyle = wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT), wx.NullColor, self.getDefaultFontStyle())
         
         if config.get('gui', 'chat_style') == "singleline":
             self.txt_in.SetDefaultStyle(timestyle)
             self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
-            self.txt_in.SetDefaultStyle(dfltstyle)
+            self.resetDefaultStyle()
             self.txt_in.SetDefaultStyle(userstyle)
             self.txt_in.write("%s: " % name)
         else:
@@ -1587,7 +1599,7 @@ class ChatWindow(wx.Frame):
             self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
             self.lastlineby = color+name
         
-        self.txt_in.SetDefaultStyle(dfltstyle)
+        self.resetDefaultStyle()
         self.txt_in.write(text + os.linesep)
         
         self.workaroundScrollBug()
@@ -1602,24 +1614,30 @@ class ChatWindow(wx.Frame):
             self.log(logtext)
 
     def writeHintLine(self, line):
-        self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_time_stamp")))
+        spcrstyle = wx.TextAttr(config.get("gui", "color_time_stamp"), wx.NullColor, self.getSpacingFontStyle())
+        timestyle = wx.TextAttr(config.get("gui", "color_time_stamp"), wx.NullColor, self.getTimeFontStyle())
+        
+        self.txt_in.SetDefaultStyle(spcrstyle)
+        self.txt_in.write(os.linesep)
+        self.txt_in.SetDefaultStyle(timestyle)
         self.txt_in.write(line + os.linesep)
-        if config.getint("gui", "color_text_use_system_colors") == 0:
-            self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_text_fore")))
-        else:
-            self.txt_in.SetDefaultStyle(wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)))
-
+        
+        self.resetDefaultStyle()
         self.workaroundScrollBug()
     
     def writeSystemLine(self, line):
-        self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_time_stamp")))
+        spcrstyle = wx.TextAttr(config.get("gui", "color_time_stamp"), wx.NullColor, self.getSpacingFontStyle())
+        timestyle = wx.TextAttr(config.get("gui", "color_time_stamp"), wx.NullColor, self.getTimeFontStyle())
+        
+        self.txt_in.SetDefaultStyle(spcrstyle)
+        self.txt_in.write(os.linesep)
+        self.txt_in.SetDefaultStyle(timestyle)
         self.txt_in.write("%s " % time.strftime(config.get("gui", "time_stamp_format")))
         self.txt_in.write(line + os.linesep)
-        if config.getint("gui", "color_text_use_system_colors") == 0:
-            self.txt_in.SetDefaultStyle(wx.TextAttr(config.get("gui", "color_text_fore")))
-        else:
-            self.txt_in.SetDefaultStyle(wx.TextAttr(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)))
-
+        self.txt_in.SetDefaultStyle(spcrstyle)
+        self.txt_in.write(os.linesep)
+        
+        self.resetDefaultStyle()
         self.workaroundScrollBug()
         
         path = config.get("logging", "chatlog_path")
@@ -2002,6 +2020,7 @@ class DropTarget(BetterFileDropTarget):
         self.buddy = buddy
 
     def OnDropFiles(self, x, y, filenames):
+        is_zip_file = False
         if len(filenames) > 0:
             for droppedfile in filenames:
                 file_name = self.getFileName(droppedfile)
@@ -2010,8 +2029,36 @@ class DropTarget(BetterFileDropTarget):
                     break
                 
                 if os.path.isdir(file_name):
-                    wx.MessageBox(lang.D_WARN_FILE_IS_DIR_MESSAGE, lang.D_WARN_FILE_IS_DIR_TITLE)
-                    break
+                    if config.getint("files", "dragdropzipdir_enable"):
+                        print "(2) "+str(file_name)+", "+str(droppedfile)+" is directory, trying to zip..."
+                        
+                        zippath = config.get("files", "dragdropzipdir_packer").replace('\\\\', '\\').replace('\\', '/')
+                        dirname = os.path.basename(os.path.normpath(file_name))
+                        zipfile = tc_client.createTemporaryZipFile(dirname+".rar").replace('\\\\', '\\').replace('\\', '/')
+                        zipcont = os.path.normpath(file_name).replace('\\\\', '\\').replace('\\', '/')
+                        command = config.get("files", "dragdropzipdir_command").rstrip(";") % (zippath, zipfile, zipcont)
+                        
+                        """
+                        zippath = os.path.normpath("c:/Program Files/WinRAR/Rar.exe").replace('\\\\', '\\').replace('\\', '/')
+                        dirname = os.path.basename(os.path.normpath(file_name))
+                        zipfile = tc_client.createTemporaryZipFile(dirname+".rar").replace('\\\\', '\\').replace('\\', '/')
+                        zipcont = os.path.normpath(file_name).replace('\\\\', '\\').replace('\\', '/')
+                        command = 'call "%s" a -r -ep1 "%s" "%s"' % (zippath, zipfile, zipcont)
+                        """
+                        
+                        print "(2) Zip command is: "+str(command)
+                        result = os.system(command)
+                        print "(2) Zip result is: "+str(result)
+                        
+                        if result == 0:
+                            file_name = zipfile
+                            is_zip_file = True
+                        else:
+                            wx.MessageBox(lang.D_WARN_FILE_DRAGDROPZIP_MESSAGE % str(result), lang.D_WARN_FILE_DRAGDROPZIP_TITLE)
+                            continue
+                    else:
+                        wx.MessageBox(lang.D_WARN_FILE_IS_DIR_MESSAGE, lang.D_WARN_FILE_IS_DIR_TITLE)
+                        continue
         
                 if self.buddy:
                     buddy = self.buddy
@@ -2025,7 +2072,7 @@ class DropTarget(BetterFileDropTarget):
                         print "(2) file dropped on empty space, ignoring"
                         break
         
-                FileTransferWindow(self.mw, buddy, file_name)
+                FileTransferWindow(self.mw, buddy, file_name, None, is_zip_file)
         else:
             wx.MessageBox("No files found", "No files found")
 
@@ -2053,7 +2100,7 @@ class AvatarDropTarget(BetterFileDropTarget):
 
 
 class FileTransferWindow(wx.Frame):
-    def __init__(self, main_window, buddy, file_name, receiver=None):
+    def __init__(self, main_window, buddy, file_name, receiver=None, is_zip_file=False):
         #if receiver is given (a FileReceiver instance) we initialize
         #a Receiver Window, else we initialize a sender window and
         #let the client library create us a FileSender instance
@@ -2073,6 +2120,7 @@ class FileTransferWindow(wx.Frame):
         self.bytesdiff = 0;
         self.prevtime = datetime.now();
         self.transferrate = 0
+        self.is_zip_file = is_zip_file
 
         if not receiver:
             self.is_receiver = False
@@ -2105,13 +2153,13 @@ class FileTransferWindow(wx.Frame):
             self.btn_save = wx.Button(self.panel, wx.ID_SAVEAS, lang.BTN_SAVE_AS)
             self.btn_save.Bind(wx.EVT_BUTTON, self.onSave)
             # Notify user
-            self.chatMessage('You are receiving "' + self.file_name + '"')
+            self.chatMessage(lang.CHAT_RECEIVING_FILE % self.file_name)
             # Attempt to auto-save the file
             if self.autoSave():
-                self.btn_save.SetLabel("Auto saving")
+                self.btn_save.SetLabel(lang.DFT_AUTO_SAVE)
                 self.btn_save.Enable(False)
         else:
-            self.chatMessage('You are sending "' + self.file_name + '"')
+            self.chatMessage(lang.CHAT_SENDING_FILE % self.file_name)
                 
             
         self.btn_cancel = wx.Button(self.panel, wx.ID_CANCEL, lang.BTN_CANCEL)
@@ -2126,6 +2174,7 @@ class FileTransferWindow(wx.Frame):
         self.panel.SetSizer(self.outer_sizer)
         self.updateOutput()
         self.outer_sizer.Fit(self)
+        self.Bind(wx.EVT_CLOSE, self.onClose)
 
         self.Disable()
         self.Show()
@@ -2195,7 +2244,8 @@ class FileTransferWindow(wx.Frame):
                 if self.file_name_save != "":
                     if not self.alldone:
                         self.alldone = True
-                        self.chatMessage('Received "file:///' + self.file_name_save.replace(' ', '%20') + '"')
+                        filelink = 'file:///' + self.file_name_save.replace(' ', '%20')
+                        self.chatMessage(lang.CHAT_RECEIVED_FILE % filelink)
                     self.btn_cancel.SetLabel(lang.BTN_CLOSE)
                     self.transfer_object.close() #this will actually save the file
                     if self.autosave:
@@ -2203,12 +2253,12 @@ class FileTransferWindow(wx.Frame):
                 else:
                     if not self.alldone:
                         self.alldone = True
-                        self.chatMessage('Received file "' + self.file_name + '" is ready to be saved...')
+                        self.chatMessage(lang.CHAT_FILE_READY % self.file_name)
             else:
                 # Prevent displaying of multiple messages while the event is still firing...
                 if not self.alldone:
                     self.alldone = True
-                    self.chatMessage('Successfully sent file "' + self.file_name + '"')
+                    self.chatMessage(lang.CHAT_FILE_SENT % self.file_name)
                 #self.btn_cancel.SetLabel(lang.BTN_CLOSE)
                 self.Close();
 
@@ -2234,7 +2284,7 @@ class FileTransferWindow(wx.Frame):
         timedelta = now - self.prevtime
         seconds = self.getTimeDeltaInSeconds(timedelta)
         
-        if seconds > 1.0:
+        if seconds > 2.5:
             self.transferrate = (self.bytesdiff/1024)/seconds
             self.bytesdiff = 0
             self.prevtime = now
@@ -2254,15 +2304,15 @@ class FileTransferWindow(wx.Frame):
             days = int(math.floor(timetotal/86400))
             
             if days > 0:
-                text = "%id, %ih, %im and %is" % (days, hours, minutes, seconds)
+                text = lang.DFT_ETA_DAYS % (days, hours, minutes, seconds)
             else:
                 if hours > 0:
-                    text = "%ih, %im and %is" % (hours, minutes, seconds)
+                    text = lang.DFT_ETA_HOURS % (hours, minutes, seconds)
                 else:
                     if minutes > 0:
-                        text = "%i minutes and %i seconds" % (minutes, seconds)
+                        text = lang.DFT_ETA_MINS % (minutes, seconds)
                     else:
-                        text = "%i seconds" % (seconds)
+                        text = lang.DFT_ETA_SECS % (seconds)
             
             text = ", %s" % (text)
                 
@@ -2277,6 +2327,16 @@ class FileTransferWindow(wx.Frame):
         except:
             pass
         self.Close()
+    
+    def onClose(self, evt):
+        if not self.completed:
+            self.onCancel(evt)
+        
+        if self.is_zip_file:
+            if config.getint("files", "dragdropzipdir_wipezip"):
+                tc_client.wipeFile(self.file_name)
+        self.Hide()
+        self.Destroy()
     
     def autoSave(self):
         basepath = config.getUserCustomDir()
@@ -2373,7 +2433,8 @@ class FileTransferWindow(wx.Frame):
 
             self.btn_save.Enable(False)
             if self.completed:
-                self.chatMessage(u'Saved file "file:///' + self.file_name_save.replace(' ', '%20') + '"')
+                filelink = 'file:///' + self.file_name_save.replace(' ', '%20') + '"'
+                self.chatMessage(lang.CHAT_FILE_SAVED % filelink)
                 self.onCancel(evt)
         else:
             pass
@@ -2450,11 +2511,9 @@ class MainWindow(wx.Frame):
         prefTool = toolbar.AddLabelTool(wx.ID_PREFERENCES, lang.TOOL_SETTINGS_LABEL, wx.Bitmap('icons/settings.png'), shortHelp=lang.TOOL_SETTINGS_HELP)
         addCTool = toolbar.AddLabelTool(wx.ID_ADD, lang.TOOL_ADD_CONTACT_LABEL, wx.Bitmap('icons/add.png'), shortHelp=lang.TOOL_ADD_CONTACT_HELP)
         EditTool = toolbar.AddLabelTool(wx.ID_EDIT, lang.TOOL_EDIT_PROFILE_LABEL, wx.Bitmap('icons/edit.png'), shortHelp=lang.TOOL_EDIT_PROFILE_HELP)
-        IdntTool = toolbar.AddLabelTool(wx.ID_REFRESH, lang.TOOL_NEW_IDENTITY_LABEL, wx.Bitmap('icons/newidentity.png'), shortHelp=lang.TOOL_NEW_IDENTITY_HELP)
         self.Bind(wx.EVT_TOOL, self.onPrefs, prefTool)
         self.Bind(wx.EVT_TOOL, self.onAddContact, addCTool)
         self.Bind(wx.EVT_TOOL, self.onEditProfile, EditTool)
-        self.Bind(wx.EVT_TOOL, self.onNewIdentity, IdntTool)
         self.Bind(wx.EVT_TOOL, self.onQuit, id=wx.ID_EXIT)
         toolbar.Realize()
         
@@ -2570,10 +2629,6 @@ class MainWindow(wx.Frame):
     def onEditProfile(self, evt):
         dialog = DlgEditProfile(self, self)
         dialog.ShowModal()
-    
-    def onNewIdentity(self, evt):
-        if not self.buddy_list.changeTorIdentity():
-            wx.MessageBox(lang.D_WARN_CONTROL_CONNECTION_FAILED_MESSAGE, lang.D_WARN_CONTROL_CONNECTION_FAILED_TITLE)
     
     def onClose(self, evt):
         self.Show(False)

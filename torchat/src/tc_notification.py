@@ -245,7 +245,7 @@ class NotificationWindowToaster(wx.Frame):
         
         # Set the buddy
         self.buddy  = buddy
-        message = "%s\n%s" % (name, text)
+        message = "Torchat: %s\n\n%s\n%s" % (config.getProfileShortName(), name, text)
         
         # Get the window color
         if not len(color):

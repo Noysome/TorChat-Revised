@@ -1,4 +1,3 @@
-W: no module named _dummy_threading (top-level import by dummy_threading)
 W: no module named grp (top-level import by shutil)
 W: no module named pwd (delayed, conditional import by posixpath)
 W: no module named org (top-level import by pickle)
@@ -37,7 +36,6 @@ W: delayed  __import__ hack detected at line 0 - pickle (C:\Python27\lib\pickle.
 W: delayed  __import__ hack detected at line 0 - pickle (C:\Python27\lib\pickle.pyc)
 W: delayed  __import__ hack detected at line 0 - config (D:\_PROJECTS\Torchat-Revised\TorChat-Revised\torchat\src\config.pyc)
 W: delayed  __import__ hack detected at line 0 - encodings (C:\Python27\lib\encodings\__init__.pyc)
-W: __all__ is built strangely at line 0 - dummy_threading (C:\Python27\lib\dummy_threading.pyc)
 W: __all__ is built strangely at line 0 - dis (C:\Python27\lib\dis.pyc)
 W: __all__ is built strangely at line 0 - hashlib (C:\Python27\lib\hashlib.pyc)
 W: delayed conditional eval hack detected at line 0 - warnings (C:\Python27\lib\warnings.pyc)

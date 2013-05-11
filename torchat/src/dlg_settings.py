@@ -119,6 +119,15 @@ class Dialog(wx.Dialog):
         '''self.dir_tmp.setEnabled(not self.chk_tmp.getValue())
         self.chk_tmp.wx_ctrl.Bind(wx.EVT_CHECKBOX, self.onChkTmp)'''
         
+        dlg.Separator(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_SEP_TITLE)
+        dlg.Info(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_INFO)
+        dlg.Check(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_ENABLED, ("files", "dragdropzipdir_enable"))
+        self.dir_ziptmp = dlg.Dir(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_DIR, ("files", "dragdropzipdir_dir"))
+        self.zip_packer = dlg.File(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_PACKER, ("files", "dragdropzipdir_packer"))
+        dlg.Text(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_COMMAND, ("files", "dragdropzipdir_command"), True)
+        dlg.Info(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_COMMAND_INFO)
+        dlg.Check(self.p3, lang.DSET_MISC_FILES_DRAGDROPZIPDIR_WIPEZIP, ("files", "dragdropzipdir_wipezip"))
+        
         #4 fit the sizers
         outer_sizer.Fit(self)
         

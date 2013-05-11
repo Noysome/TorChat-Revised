@@ -107,7 +107,10 @@ class Control(object):
             config.set(self.config_section, self.config_option, self.getValue())
 
     def readConfig(self, section, option):
-        return config.get(section, option)
+        value = config.get(section, option)
+        if isinstance(value, basestring):
+            return value.replace('"', "\"")
+        return value
                 
                 
 class Text(Control):
@@ -156,6 +159,34 @@ class Dir(Control):
         res = dir_dialog.ShowModal()
         if res == wx.ID_OK:
             self.wx_ctrl.SetValue(dir_dialog.GetPath())
+        
+    def setEnabled(self, enabled):
+        Control.setEnabled(self, enabled)
+        self.button.Enable(enabled)
+
+class File(Control):
+    def __init__(self, panel, label, default, width=0):
+        Control.__init__(self, panel, label, default)
+        box = wx.BoxSizer(wx.HORIZONTAL)
+        self.wx_ctrl
+        self.wx_ctrl = wx.TextCtrl(self.panel, wx.ID_ANY, self.default)
+        box.Add(self.wx_ctrl, 1, wx.EXPAND)
+        self.button = wx.Button(self.panel, wx.ID_ANY, "...")
+        size_btn = self.wx_ctrl.GetSize()[1] #the height
+        self.button.SetSizeHints(size_btn, size_btn)
+        box.Add(self.button, 0)
+        box1 = wx.BoxSizer(wx.VERTICAL)
+        box1.Add(box, 0, wx.EXPAND)
+        self.panel.addItem(self.wx_label)
+        self.panel.addItem(box1, 1, flags=wx.EXPAND, new_line=True)
+        self.button.Bind(wx.EVT_BUTTON, self.onClick)
+        
+    def onClick(self, evt):
+        dir_dialog = wx.FileDialog(self.panel)
+        dir_dialog.SetPath(self.wx_ctrl.GetValue())
+        res = dir_dialog.ShowModal()
+        if res == wx.ID_OK:
+            self.wx_ctrl.SetValue(dir_dialog.GetPath().replace('\\', '/'))
         
     def setEnabled(self, enabled):
         Control.setEnabled(self, enabled)
