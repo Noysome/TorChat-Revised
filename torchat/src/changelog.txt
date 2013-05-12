@@ -1,5 +1,5 @@
 version 0.9.9.550.rev17
-- Dropping of folders
+- Dropping of folders: possible to archive and send
 	- Requires a packing application via a command line interface, default command included for use with WinRAR
 	- You can choose where the archive files get stored
 	- You can make TorChat wipe the archive after the transfer is complete

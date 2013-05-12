@@ -49,5 +49,5 @@ Upgrade
 
 **Windows users:**
 To update your own existing Torchat Revised installation without loosing your ID, buddylist
-or settings; simply copy "bin/torchat.exe" and "bin/Tor/tor.exe" over to your existing 
-folder and overwrite the files.
+or settings; simply copy "bin/torchat.exe", "bin/icons/" and "bin/Tor/tor.exe" over to your existing 
+folder and overwrite the files. 
